@@ -18,7 +18,7 @@ async def login(request: LoginRequest, req: Request):
     3. If name has IP: must match current IP
     4. If IP already bound to different name: reject
     """
-    client_ip = req.client.host
+    client_ip = req.headers.get("x-forwarded-for", req.client.host).split(",")[0].strip()
     name = request.name.strip()
 
     if not name:

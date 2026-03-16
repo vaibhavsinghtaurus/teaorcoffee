@@ -11,7 +11,7 @@ async def get_current_user(request: Request) -> AuthUser:
     - IP not registered
     - User inactive
     """
-    client_ip = request.client.host
+    client_ip = request.headers.get("x-forwarded-for", request.client.host).split(",")[0].strip()
 
     async with db.get_connection() as conn:
         cursor = await conn.execute(
@@ -39,7 +39,7 @@ async def get_current_user_from_websocket(websocket: WebSocket) -> AuthUser:
     """
     Authenticate WebSocket connection by IP
     """
-    client_ip = websocket.client.host
+    client_ip = websocket.headers.get("x-forwarded-for", websocket.client.host).split(",")[0].strip()
 
     async with db.get_connection() as conn:
         cursor = await conn.execute(
