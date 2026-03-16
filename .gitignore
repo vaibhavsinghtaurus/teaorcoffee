@@ -40,5 +40,3 @@ env/
 *.swo
 *~
 
-# Poetry
-poetry.lock
