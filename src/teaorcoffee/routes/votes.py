@@ -42,7 +42,7 @@ async def get_my_vote(user: AuthUser = Depends(get_current_user)):
                 detail="You have not voted today",
             )
 
-        return {"ip": user.ip_address, "tea": vote["tea"], "coffee": vote["coffee"]}
+        return {"tea": vote["tea"], "coffee": vote["coffee"]}
 
 
 @router.post("/vote", response_model=VotesResponse, status_code=201)

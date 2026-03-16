@@ -7,7 +7,6 @@ class VotesResponse(BaseModel):
 
 
 class VoteMeResponse(BaseModel):
-    ip: str
     tea: int
     coffee: int
 
@@ -30,6 +29,7 @@ class LoginResponse(BaseModel):
     success: bool
     name: str
     message: str
+    token: str
 
 
 class AuthUser(BaseModel):
@@ -37,7 +37,7 @@ class AuthUser(BaseModel):
 
     id: int
     name: str
-    ip_address: str
+    token: str
 
 
 class ResetRequest(BaseModel):

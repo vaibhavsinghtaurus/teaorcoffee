@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Request, status
+import secrets
+from fastapi import APIRouter, HTTPException, status
 from datetime import datetime
 
 from src.teaorcoffee.models.schema import LoginRequest, LoginResponse
@@ -8,17 +9,11 @@ router = APIRouter(tags=["Authentication"])
 
 
 @router.post("/login", response_model=LoginResponse)
-async def login(request: LoginRequest, req: Request):
+async def login(request: LoginRequest):
     """
-    Authenticate user by name and bind to IP address
-
-    Rules:
-    1. Name must be in allowed list
-    2. If name has no IP: bind to current IP
-    3. If name has IP: must match current IP
-    4. If IP already bound to different name: reject
+    Authenticate user by name and issue a session token.
+    Each login generates a new token (previous token is invalidated).
     """
-    client_ip = req.headers.get("x-forwarded-for", req.client.host).split(",")[0].strip()
     name = request.name.strip()
 
     if not name:
@@ -27,9 +22,8 @@ async def login(request: LoginRequest, req: Request):
         )
 
     async with db.get_connection() as conn:
-        # Check if name exists in allowed users
         cursor = await conn.execute(
-            "SELECT id, name, ip_address, is_active FROM allowed_users WHERE name = ?",
+            "SELECT id, name, is_active FROM allowed_users WHERE name = ?",
             (name,),
         )
         user = await cursor.fetchone()
@@ -46,49 +40,17 @@ async def login(request: LoginRequest, req: Request):
                 detail="User account is disabled",
             )
 
-        user_id = user["id"]
-        existing_ip = user["ip_address"]
+        token = secrets.token_urlsafe(32)
 
-        # Case 1: User has no IP yet - bind to current IP
-        if existing_ip is None:
-            # Check if this IP is already bound to another user
-            cursor = await conn.execute(
-                "SELECT name FROM allowed_users WHERE ip_address = ? AND id != ?",
-                (client_ip, user_id),
-            )
-            conflicting_user = await cursor.fetchone()
-
-            if conflicting_user:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=f"IP already associated with user '{conflicting_user['name']}'",
-                )
-
-            # Bind IP to this user
-            await conn.execute(
-                "UPDATE allowed_users SET ip_address = ?, last_login_at = ? WHERE id = ?",
-                (client_ip, datetime.now().isoformat(), user_id),
-            )
-            await conn.commit()
-
-            return LoginResponse(
-                success=True,
-                name=name,
-                message=f"Welcome {name}! IP address registered.",
-            )
-
-        # Case 2: User has IP - verify it matches
-        if existing_ip != client_ip:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"IP mismatch: '{name}' can only login from registered IP",
-            )
-
-        # Update last login time
         await conn.execute(
-            "UPDATE allowed_users SET last_login_at = ? WHERE id = ?",
-            (datetime.now().isoformat(), user_id),
+            "UPDATE allowed_users SET session_token = ?, last_login_at = ? WHERE id = ?",
+            (token, datetime.now().isoformat(), user["id"]),
         )
         await conn.commit()
 
-        return LoginResponse(success=True, name=name, message=f"Welcome back, {name}!")
+        return LoginResponse(
+            success=True,
+            name=name,
+            message=f"Welcome {name}!",
+            token=token,
+        )

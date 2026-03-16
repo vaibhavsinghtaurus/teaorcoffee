@@ -10,7 +10,7 @@ router = APIRouter(tags=["Admin"])
 
 @router.post("/reset", response_model=VotesResponse)
 async def reset_votes(request: ResetRequest):
-    """Clear all votes but preserve IP bindings for authenticated users"""
+    """Clear all votes but preserve session tokens for authenticated users"""
     if request.password != settings.admin_password:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Bhadwa saala randibaaz"
@@ -29,7 +29,7 @@ async def reset_votes(request: ResetRequest):
 
 @router.post("/unbind", response_model=UnbindResponse)
 async def unbind_user(request: UnbindRequest):
-    """Remove IP binding from a user by name"""
+    """Remove session token from a user by name, forcing them to log in again"""
     if request.password != settings.admin_password:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Bhadwa saala randibaaz"
@@ -45,7 +45,7 @@ async def unbind_user(request: UnbindRequest):
     async with db.get_connection() as conn:
         # Check if user exists
         cursor = await conn.execute(
-            "SELECT id, name, ip_address FROM allowed_users WHERE name = ?", (name,)
+            "SELECT id, name, session_token FROM allowed_users WHERE name = ?", (name,)
         )
         user = await cursor.fetchone()
 
@@ -55,23 +55,23 @@ async def unbind_user(request: UnbindRequest):
                 detail=f"User '{name}' not found in allowed list",
             )
 
-        if user["ip_address"] is None:
+        if user["session_token"] is None:
             return UnbindResponse(
                 success=True,
                 name=name,
-                message=f"User '{name}' has no IP binding",
+                message=f"User '{name}' has no active session",
             )
 
-        # Remove IP binding
+        # Remove session token
         await conn.execute(
-            "UPDATE allowed_users SET ip_address = NULL WHERE id = ?", (user["id"],)
+            "UPDATE allowed_users SET session_token = NULL WHERE id = ?", (user["id"],)
         )
         await conn.commit()
 
         return UnbindResponse(
             success=True,
             name=name,
-            message=f"IP binding removed for user '{name}'",
+            message=f"Session removed for user '{name}'",
         )
 
 
@@ -133,7 +133,7 @@ async def remove_order(request: RemoveOrderRequest):
 
 @router.post("/remove-all-logins", response_model=RemoveAllLoginsResponse)
 async def remove_all_logins(request: RemoveAllLoginsRequest):
-    """Remove IP bindings for all users, forcing everyone to log in again"""
+    """Remove session tokens for all users, forcing everyone to log in again"""
     if request.password != settings.admin_password:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Bhadwa saala randibaaz"
@@ -141,7 +141,7 @@ async def remove_all_logins(request: RemoveAllLoginsRequest):
 
     async with db.get_connection() as conn:
         cursor = await conn.execute(
-            "UPDATE allowed_users SET ip_address = NULL WHERE ip_address IS NOT NULL"
+            "UPDATE allowed_users SET session_token = NULL WHERE session_token IS NOT NULL"
         )
         count = cursor.rowcount
         await conn.commit()

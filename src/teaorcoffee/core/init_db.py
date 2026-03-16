@@ -11,11 +11,18 @@ async def initialize_database():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE,
                 ip_address TEXT,
+                session_token TEXT,
                 created_at TEXT NOT NULL DEFAULT (datetime('now')),
                 last_login_at TEXT,
                 is_active INTEGER NOT NULL DEFAULT 1
             )
         """)
+
+        # Migrate existing DBs that don't have session_token column yet
+        try:
+            await conn.execute("ALTER TABLE allowed_users ADD COLUMN session_token TEXT")
+        except Exception:
+            pass  # Column already exists
 
         # Create user_votes table
         await conn.execute("""
@@ -35,6 +42,9 @@ async def initialize_database():
         )
         await conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_allowed_users_ip ON allowed_users(ip_address)"
+        )
+        await conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_allowed_users_token ON allowed_users(session_token)"
         )
         await conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_user_votes_user_id ON user_votes(user_id)"

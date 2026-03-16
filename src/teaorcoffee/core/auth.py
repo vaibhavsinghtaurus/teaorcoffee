@@ -5,22 +5,21 @@ from src.teaorcoffee.models.schema import AuthUser
 
 async def get_current_user(request: Request) -> AuthUser:
     """
-    FastAPI dependency to validate authenticated user by IP
-
-    Raises HTTPException if:
-    - IP not registered
-    - User inactive
+    FastAPI dependency to validate authenticated user by session token.
+    Expects: Authorization: Bearer <token>
     """
-    client_ip = request.headers.get("x-forwarded-for", request.client.host).split(",")[0].strip()
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated. Please login first.",
+        )
+    token = auth_header[7:]
 
     async with db.get_connection() as conn:
         cursor = await conn.execute(
-            """
-            SELECT id, name, ip_address
-            FROM allowed_users
-            WHERE ip_address = ? AND is_active = 1
-            """,
-            (client_ip,),
+            "SELECT id, name, session_token FROM allowed_users WHERE session_token = ? AND is_active = 1",
+            (token,),
         )
         user = await cursor.fetchone()
 
@@ -30,25 +29,26 @@ async def get_current_user(request: Request) -> AuthUser:
                 detail="Not authenticated. Please login first.",
             )
 
-        return AuthUser(
-            id=user["id"], name=user["name"], ip_address=user["ip_address"]
-        )
+        return AuthUser(id=user["id"], name=user["name"], token=user["session_token"])
 
 
 async def get_current_user_from_websocket(websocket: WebSocket) -> AuthUser:
     """
-    Authenticate WebSocket connection by IP
+    Authenticate WebSocket connection by session token query param.
+    Expects: /ws/votes?token=<token>
     """
-    client_ip = websocket.headers.get("x-forwarded-for", websocket.client.host).split(",")[0].strip()
+    token = websocket.query_params.get("token", "")
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="WebSocket authentication failed",
+        )
 
     async with db.get_connection() as conn:
         cursor = await conn.execute(
-            """
-            SELECT id, name, ip_address
-            FROM allowed_users
-            WHERE ip_address = ? AND is_active = 1
-            """,
-            (client_ip,),
+            "SELECT id, name, session_token FROM allowed_users WHERE session_token = ? AND is_active = 1",
+            (token,),
         )
         user = await cursor.fetchone()
 
@@ -58,6 +58,4 @@ async def get_current_user_from_websocket(websocket: WebSocket) -> AuthUser:
                 detail="WebSocket authentication failed",
             )
 
-        return AuthUser(
-            id=user["id"], name=user["name"], ip_address=user["ip_address"]
-        )
+        return AuthUser(id=user["id"], name=user["name"], token=user["session_token"])
