@@ -24,4 +24,4 @@ EXPOSE 8000
 # Mount point for persistent SQLite database
 VOLUME ["/app/data"]
 
-CMD ["uvicorn", "src.teaorcoffee.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "src.teaorcoffee.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]
