@@ -17,13 +17,13 @@ class SheetsDatabase:
         self._url = url
 
     async def _get(self, params: dict) -> dict:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             r = await client.get(self._url, params=params, follow_redirects=True)
             r.raise_for_status()
             return r.json()
 
     async def _post(self, body: dict) -> dict:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             r = await client.post(self._url, json=body, follow_redirects=True)
             r.raise_for_status()
             return r.json()
