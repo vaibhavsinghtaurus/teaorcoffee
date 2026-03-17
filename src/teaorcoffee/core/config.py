@@ -3,7 +3,7 @@ from typing import List
 
 
 class Settings(BaseSettings):
-    database_path: str = "data/teaorcoffee.db"
+    apps_script_url: str = ""
     allowed_names: List[str] = [
         "Vaibhav",
         "Sourabh",

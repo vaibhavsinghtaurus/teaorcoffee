@@ -15,13 +15,7 @@ RUN poetry config virtualenvs.create false \
 # Copy application source
 COPY src/ ./src/
 
-# Ensure the data directory exists for SQLite
-RUN mkdir -p data
-
 # Expose the API port
 EXPOSE 8000
-
-# Mount point for persistent SQLite database
-VOLUME ["/app/data"]
 
 CMD ["uvicorn", "src.teaorcoffee.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]

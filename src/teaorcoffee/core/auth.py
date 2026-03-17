@@ -16,20 +16,14 @@ async def get_current_user(request: Request) -> AuthUser:
         )
     token = auth_header[7:]
 
-    async with db.get_connection() as conn:
-        cursor = await conn.execute(
-            "SELECT id, name, session_token FROM allowed_users WHERE session_token = ? AND is_active = 1",
-            (token,),
+    user = await db.get_user_by_token(token)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated. Please login first.",
         )
-        user = await cursor.fetchone()
 
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Not authenticated. Please login first.",
-            )
-
-        return AuthUser(id=user["id"], name=user["name"], token=user["session_token"])
+    return AuthUser(id=int(user["id"]), name=user["name"], token=user["session_token"])
 
 
 async def get_current_user_from_websocket(websocket: WebSocket) -> AuthUser:
@@ -45,17 +39,11 @@ async def get_current_user_from_websocket(websocket: WebSocket) -> AuthUser:
             detail="WebSocket authentication failed",
         )
 
-    async with db.get_connection() as conn:
-        cursor = await conn.execute(
-            "SELECT id, name, session_token FROM allowed_users WHERE session_token = ? AND is_active = 1",
-            (token,),
+    user = await db.get_user_by_token(token)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="WebSocket authentication failed",
         )
-        user = await cursor.fetchone()
 
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="WebSocket authentication failed",
-            )
-
-        return AuthUser(id=user["id"], name=user["name"], token=user["session_token"])
+    return AuthUser(id=int(user["id"]), name=user["name"], token=user["session_token"])

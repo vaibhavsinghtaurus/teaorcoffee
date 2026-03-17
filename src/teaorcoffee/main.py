@@ -11,8 +11,8 @@ from src.teaorcoffee.routes import health, votes, admin, websocket, chat, auth
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
-    # Startup: initialize database
-    db.initialize(settings.database_path)
+    # Startup: connect to Apps Script web app and seed users
+    db.initialize(settings.apps_script_url)
     await initialize_database()
     yield
     # Shutdown: cleanup if needed
