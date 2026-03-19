@@ -1,92 +1,144 @@
-import httpx
+from datetime import date
 from typing import Optional
 
+from motor.motor_asyncio import AsyncIOMotorClient
 
-class SheetsDatabase:
-    """Calls a Google Apps Script web app as the database layer"""
+
+class MongoDatabase:
+    """MongoDB database layer using motor (async)"""
 
     _instance = None
-    _url: str = None
+    _client: Optional[AsyncIOMotorClient] = None
+    _db = None
 
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def initialize(self, url: str):
-        self._url = url
+    def initialize(self, uri: str):
+        self._client = AsyncIOMotorClient(uri)
+        self._db = self._client["teaorcoffee"]
 
-    async def _get(self, params: dict) -> dict:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            r = await client.get(self._url, params=params, follow_redirects=True)
-            r.raise_for_status()
-            return r.json()
+    def close(self):
+        if self._client:
+            self._client.close()
 
-    async def _post(self, body: dict) -> dict:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            r = await client.post(self._url, json=body, follow_redirects=True)
-            r.raise_for_status()
-            return r.json()
+    @property
+    def users(self):
+        return self._db["users"]
+
+    @property
+    def votes(self):
+        return self._db["votes"]
+
+    def _today(self) -> str:
+        return date.today().isoformat()
 
     # ---- Setup ----
 
     async def seed_users(self, names: list[str]):
-        await self._post({"action": "seed_users", "names": names})
+        existing = {u["name"] async for u in self.users.find({}, {"name": 1})}
+        last = await self.users.find_one(sort=[("_id", -1)])
+        next_id = (last["_id"] + 1) if last else 1
+
+        new_users = []
+        for name in names:
+            if name not in existing:
+                new_users.append({
+                    "_id": next_id,
+                    "name": name,
+                    "is_active": 1,
+                    "session_token": None,
+                    "last_login_at": None,
+                })
+                next_id += 1
+
+        if new_users:
+            await self.users.insert_many(new_users)
 
     # ---- Users ----
 
     async def get_user_by_name(self, name: str) -> Optional[dict]:
-        result = await self._get({"action": "get_user_by_name", "name": name})
-        return result.get("data")
+        user = await self.users.find_one({"name": name})
+        if user:
+            user["id"] = user["_id"]
+        return user
 
     async def get_user_by_token(self, token: str) -> Optional[dict]:
-        result = await self._get({"action": "get_user_by_token", "token": token})
-        return result.get("data")
+        if not token:
+            return None
+        user = await self.users.find_one({"session_token": token})
+        if user:
+            user["id"] = user["_id"]
+        return user
 
     async def update_user_token(self, user_id: int, token: Optional[str], last_login_at: Optional[str] = None):
-        await self._post({
-            "action": "update_user_token",
-            "user_id": user_id,
-            "token": token or "",
-            "last_login_at": last_login_at or "",
-        })
+        update: dict = {"session_token": token or None}
+        if last_login_at:
+            update["last_login_at"] = last_login_at
+        await self.users.update_one({"_id": user_id}, {"$set": update})
 
     async def clear_all_tokens(self) -> int:
-        result = await self._post({"action": "clear_all_tokens"})
-        return result.get("data", {}).get("count", 0)
+        result = await self.users.update_many(
+            {"session_token": {"$ne": None}},
+            {"$set": {"session_token": None}},
+        )
+        return result.modified_count
 
     # ---- Votes ----
 
     async def get_today_totals(self) -> dict:
-        result = await self._get({"action": "get_today_totals"})
-        return result.get("data", {"tea": 0, "coffee": 0})
+        pipeline = [
+            {"$match": {"date": self._today()}},
+            {"$group": {"_id": None, "tea": {"$sum": "$tea"}, "coffee": {"$sum": "$coffee"}}},
+        ]
+        async for doc in self.votes.aggregate(pipeline):
+            return {"tea": doc["tea"], "coffee": doc["coffee"]}
+        return {"tea": 0, "coffee": 0}
 
     async def get_user_today_vote(self, user_id: int) -> Optional[dict]:
-        result = await self._get({"action": "get_user_today_vote", "user_id": user_id})
-        return result.get("data")
+        return await self.votes.find_one({"user_id": user_id, "date": self._today()})
 
     async def has_user_voted_today(self, user_id: int) -> bool:
-        result = await self._get({"action": "has_user_voted_today", "user_id": user_id})
-        return bool(result.get("data", False))
+        count = await self.votes.count_documents({"user_id": user_id, "date": self._today()})
+        return count > 0
 
     async def count_today_votes(self) -> int:
-        result = await self._get({"action": "count_today_votes"})
-        return int(result.get("data", 0))
+        return await self.votes.count_documents({"date": self._today()})
 
     async def insert_vote(self, user_id: int, tea: int, coffee: int):
-        await self._post({"action": "insert_vote", "user_id": user_id, "tea": tea, "coffee": coffee})
+        await self.votes.insert_one({
+            "user_id": user_id,
+            "tea": tea,
+            "coffee": coffee,
+            "date": self._today(),
+        })
 
     async def delete_all_votes(self):
-        await self._post({"action": "delete_all_votes"})
+        await self.votes.delete_many({})
 
     async def delete_user_today_vote(self, user_id: int) -> bool:
-        result = await self._post({"action": "delete_user_today_vote", "user_id": user_id})
-        return bool(result.get("data", {}).get("deleted", False))
+        result = await self.votes.delete_one({"user_id": user_id, "date": self._today()})
+        return result.deleted_count > 0
 
     async def get_today_breakdown(self) -> list[dict]:
-        result = await self._get({"action": "get_today_breakdown"})
-        return result.get("data", [])
+        pipeline = [
+            {"$match": {"date": self._today()}},
+            {"$lookup": {
+                "from": "users",
+                "localField": "user_id",
+                "foreignField": "_id",
+                "as": "user",
+            }},
+            {"$unwind": "$user"},
+            {"$project": {"_id": 0, "name": "$user.name", "tea": 1, "coffee": 1}},
+        ]
+        result = []
+        async for doc in self.votes.aggregate(pipeline):
+            result.append(doc)
+        return result
 
 
 # Global database instance
-db = SheetsDatabase()
+db = MongoDatabase()

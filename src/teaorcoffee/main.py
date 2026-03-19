@@ -11,16 +11,15 @@ from src.teaorcoffee.routes import health, votes, admin, websocket, chat, auth
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
-    # Startup: connect to Apps Script web app and seed users
-    db.initialize(settings.apps_script_url)
+    db.initialize(settings.mongodb_uri)
     await initialize_database()
     yield
-    # Shutdown: cleanup if needed
+    db.close()
 
 app = FastAPI(
     title="Tea & Coffee Orders API",
     description="Vote once per authenticated user + live chat",
-    version="4.0.0",
+    version="5.0.0",
     lifespan=lifespan,
 )
 

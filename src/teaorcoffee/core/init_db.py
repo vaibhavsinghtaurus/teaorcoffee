@@ -6,11 +6,17 @@ logger = logging.getLogger(__name__)
 
 
 async def initialize_database():
-    """Seed allowed users into the spreadsheet (creates sheets if missing)"""
-    if not settings.apps_script_url:
+    """Create indexes and seed allowed users into MongoDB"""
+    if not settings.mongodb_uri:
         logger.warning(
-            "TOC_APPS_SCRIPT_URL is not set — skipping startup seeding. "
-            "Add it to your .env to enable Google Sheets."
+            "TOC_MONGODB_URI is not set — skipping startup initialization. "
+            "Add it to your .env to enable MongoDB."
         )
         return
+
+    await db.users.create_index("name", unique=True)
+    await db.users.create_index("session_token", sparse=True)
+    await db.votes.create_index([("user_id", 1), ("date", 1)], unique=True)
+    await db.votes.create_index("date")
+
     await db.seed_users(settings.allowed_names)

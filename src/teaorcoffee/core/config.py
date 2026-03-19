@@ -3,7 +3,7 @@ from typing import List
 
 
 class Settings(BaseSettings):
-    apps_script_url: str = ""
+    mongodb_uri: str = ""
     allowed_names: List[str] = [
         "Vaibhav",
         "Sourabh",
