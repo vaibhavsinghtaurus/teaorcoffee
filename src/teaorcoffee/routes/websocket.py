@@ -20,13 +20,7 @@ async def votes_socket(websocket: WebSocket):
         connections.add(websocket)
 
         # Send current vote totals
-        async with db.get_connection() as conn:
-            cursor = await conn.execute(
-                "SELECT COALESCE(SUM(tea), 0) as tea, COALESCE(SUM(coffee), 0) as coffee FROM user_votes"
-            )
-            result = await cursor.fetchone()
-            votes = {"tea": result["tea"], "coffee": result["coffee"]}
-
+        votes = await db.get_today_totals()
         await websocket.send_json(votes)
 
         # Keep connection alive
