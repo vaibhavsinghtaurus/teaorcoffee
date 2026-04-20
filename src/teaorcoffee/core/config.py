@@ -1,3 +1,4 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings
 from typing import List
 
@@ -25,7 +26,7 @@ class Settings(BaseSettings):
     ]
 
     max_users: int = 20
-    admin_password: str = "IamAnIdiot"
+    admin_password: str = Field(validation_alias="ADMIN_PASS")
 
     class Config:
         env_file = ".env"
