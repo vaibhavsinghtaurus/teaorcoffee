@@ -58,6 +58,12 @@ class MongoDatabase:
         if new_users:
             await self.users.insert_many(new_users)
 
+        # Patch existing users that predate the is_disabled field
+        await self.users.update_many(
+            {"is_disabled": {"$exists": False}},
+            {"$set": {"is_disabled": 0}},
+        )
+
     # ---- Users ----
 
     async def get_user_by_name(self, name: str) -> Optional[dict]:
