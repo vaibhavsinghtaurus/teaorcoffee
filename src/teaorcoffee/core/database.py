@@ -49,6 +49,7 @@ class MongoDatabase:
                     "_id": next_id,
                     "name": name,
                     "is_active": 1,
+                    "is_disabled": 0,
                     "session_token": None,
                     "last_login_at": None,
                 })
@@ -78,6 +79,9 @@ class MongoDatabase:
             return None
         user["id"] = user["_id"]
         return user
+
+    async def set_user_disabled(self, user_id: int, disabled: bool):
+        await self.users.update_one({"_id": user_id}, {"$set": {"is_disabled": 1 if disabled else 0}})
 
     async def set_password_hash(self, user_id: int, password_hash: str):
         await self.users.update_one({"_id": user_id}, {"$set": {"password_hash": password_hash}})
