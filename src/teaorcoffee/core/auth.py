@@ -23,6 +23,12 @@ async def get_current_user(request: Request) -> AuthUser:
             detail="Not authenticated. Please login first.",
         )
 
+    if not user.get("password_hash"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="password_setup_required",
+        )
+
     return AuthUser(id=int(user["id"]), name=user["name"], token=user["session_token"])
 
 
@@ -44,6 +50,12 @@ async def get_current_user_from_websocket(websocket: WebSocket) -> AuthUser:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="WebSocket authentication failed",
+        )
+
+    if not user.get("password_hash"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="password_setup_required",
         )
 
     return AuthUser(id=int(user["id"]), name=user["name"], token=user["session_token"])

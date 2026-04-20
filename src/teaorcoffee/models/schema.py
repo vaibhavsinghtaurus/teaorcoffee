@@ -23,13 +23,15 @@ class ChatMessageOut(BaseModel):
 
 class LoginRequest(BaseModel):
     name: str
+    password: str | None = None
 
 
 class LoginResponse(BaseModel):
     success: bool
     name: str
     message: str
-    token: str
+    token: str | None = None
+    password_required: bool = False
 
 
 class AuthUser(BaseModel):

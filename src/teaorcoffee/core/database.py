@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -69,12 +69,25 @@ class MongoDatabase:
         if not token:
             return None
         user = await self.users.find_one({"session_token": token})
-        if user:
-            user["id"] = user["_id"]
+        if not user:
+            return None
+        expires_at = user.get("token_expires_at")
+        if not expires_at:
+            return None
+        if datetime.fromisoformat(expires_at) < datetime.now(timezone.utc):
+            return None
+        user["id"] = user["_id"]
         return user
 
+    async def set_password_hash(self, user_id: int, password_hash: str):
+        await self.users.update_one({"_id": user_id}, {"$set": {"password_hash": password_hash}})
+
     async def update_user_token(self, user_id: int, token: Optional[str], last_login_at: Optional[str] = None):
-        update: dict = {"session_token": token or None}
+        expires_at = (
+            (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+            if token else None
+        )
+        update: dict = {"session_token": token or None, "token_expires_at": expires_at}
         if last_login_at:
             update["last_login_at"] = last_login_at
         await self.users.update_one({"_id": user_id}, {"$set": update})
