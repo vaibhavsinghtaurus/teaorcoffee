@@ -88,3 +88,15 @@ class RemoveAllLoginsResponse(BaseModel):
     success: bool
     count: int
     message: str
+
+
+class SetUserDisabledRequest(BaseModel):
+    name: str
+    password: str
+    disabled: bool
+
+
+class SetUserDisabledResponse(BaseModel):
+    success: bool
+    name: str
+    message: str

@@ -11,6 +11,8 @@ from src.teaorcoffee.models.schema import (
     RemoveOrderResponse,
     RemoveAllLoginsRequest,
     RemoveAllLoginsResponse,
+    SetUserDisabledRequest,
+    SetUserDisabledResponse,
 )
 from src.teaorcoffee.utils.broadcast import broadcast_votes
 
@@ -88,3 +90,25 @@ async def remove_all_logins(request: RemoveAllLoginsRequest):
 
     count = await db.clear_all_tokens()
     return RemoveAllLoginsResponse(success=True, count=count, message=f"Logged out {count} user(s)")
+
+
+@router.post("/set-user-disabled", response_model=SetUserDisabledResponse)
+async def set_user_disabled(request: SetUserDisabledRequest):
+    """Enable or disable a user's ability to log in"""
+    if request.password != settings.admin_password:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Bhadwa saala randibaaz")
+
+    name = request.name.strip()
+    if not name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Name cannot be empty")
+
+    user = await db.get_user_by_name(name)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User '{name}' not found in allowed list",
+        )
+
+    await db.set_user_disabled(int(user["id"]), request.disabled)
+    action = "disabled" if request.disabled else "enabled"
+    return SetUserDisabledResponse(success=True, name=name, message=f"User '{name}' has been {action}")
