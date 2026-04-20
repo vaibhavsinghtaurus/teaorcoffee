@@ -1,4 +1,5 @@
 import secrets
+import bcrypt
 from fastapi import APIRouter, HTTPException, status
 from datetime import datetime
 
@@ -10,10 +11,6 @@ router = APIRouter(tags=["Authentication"])
 
 @router.post("/login", response_model=LoginResponse)
 async def login(request: LoginRequest):
-    """
-    Authenticate user by name and issue a session token.
-    Each login generates a new token (previous token is invalidated).
-    """
     name = request.name.strip()
 
     if not name:
@@ -34,6 +31,35 @@ async def login(request: LoginRequest):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is disabled",
         )
+
+    stored_hash = user.get("password_hash")
+
+    if not stored_hash:
+        # No password set yet — require the client to provide one
+        if not request.password:
+            return LoginResponse(
+                success=False,
+                name=name,
+                message="Password setup required",
+                password_required=True,
+            )
+        # First time setting password — hash and store it
+        new_hash = bcrypt.hashpw(request.password.encode(), bcrypt.gensalt()).decode()
+        await db.set_password_hash(int(user["id"]), new_hash)
+    else:
+        # Password already set — validate it
+        if not request.password:
+            return LoginResponse(
+                success=False,
+                name=name,
+                message="Password required",
+                password_required=True,
+            )
+        if not bcrypt.checkpw(request.password.encode(), stored_hash.encode()):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect password",
+            )
 
     token = secrets.token_urlsafe(32)
     await db.update_user_token(int(user["id"]), token, datetime.now().isoformat())
