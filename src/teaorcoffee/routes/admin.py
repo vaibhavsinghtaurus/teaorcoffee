@@ -13,6 +13,9 @@ from src.teaorcoffee.models.schema import (
     RemoveAllLoginsResponse,
     SetUserDisabledRequest,
     SetUserDisabledResponse,
+    PendingPasswordUsersResponse,
+    UpdateUserNameRequest,
+    UpdateUserNameResponse,
 )
 from src.teaorcoffee.utils.broadcast import broadcast_votes
 
@@ -112,3 +115,36 @@ async def set_user_disabled(request: SetUserDisabledRequest):
     await db.set_user_disabled(int(user["id"]), request.disabled)
     action = "disabled" if request.disabled else "enabled"
     return SetUserDisabledResponse(success=True, name=name, message=f"User '{name}' has been {action}")
+
+
+@router.get("/users/pending-password", response_model=PendingPasswordUsersResponse)
+async def get_pending_password_users(password: str):
+    """Get users who have not set up their password yet"""
+    if password != settings.admin_password:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Bhadwa saala randibaaz")
+
+    users = await db.get_users_without_password()
+    return PendingPasswordUsersResponse(users=users, count=len(users))
+
+
+@router.put("/users/rename", response_model=UpdateUserNameResponse)
+async def rename_user(request: UpdateUserNameRequest):
+    """Rename a user in the allowed users list"""
+    if request.password != settings.admin_password:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Bhadwa saala randibaaz")
+
+    old_name = request.old_name.strip()
+    new_name = request.new_name.strip()
+
+    if not old_name or not new_name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Names cannot be empty")
+
+    existing = await db.get_user_by_name(new_name)
+    if existing:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"User '{new_name}' already exists")
+
+    updated = await db.update_user_name(old_name, new_name)
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User '{old_name}' not found")
+
+    return UpdateUserNameResponse(success=True, old_name=old_name, new_name=new_name, message=f"'{old_name}' renamed to '{new_name}'")
