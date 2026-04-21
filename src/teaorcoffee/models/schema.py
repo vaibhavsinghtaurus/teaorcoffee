@@ -102,6 +102,21 @@ class SetUserDisabledResponse(BaseModel):
     message: str
 
 
+class PendingPasswordUsersResponse(BaseModel):
+    users: list[str]
+    count: int
+
+
+class UpdateUserNameRequest(BaseModel):
+    old_name: str
+    new_name: str
+    password: str
+
+
+class UpdateUserNameResponse(BaseModel):
+    success: bool
+    old_name: str
+    new_name: str
 class AllowedNamesResponse(BaseModel):
     names: list[str]
 

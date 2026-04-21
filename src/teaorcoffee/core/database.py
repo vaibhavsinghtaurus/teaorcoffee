@@ -152,6 +152,17 @@ class MongoDatabase:
         )
         return result.modified_count
 
+    async def get_users_without_password(self) -> list[str]:
+        cursor = self.users.find(
+            {"$or": [{"password_hash": {"$exists": False}}, {"password_hash": None}]},
+            {"name": 1},
+        )
+        return [doc["name"] async for doc in cursor]
+
+    async def update_user_name(self, old_name: str, new_name: str) -> bool:
+        result = await self.users.update_one({"name": old_name}, {"$set": {"name": new_name}})
+        return result.matched_count > 0
+
     # ---- Votes ----
 
     async def get_today_totals(self) -> dict:
