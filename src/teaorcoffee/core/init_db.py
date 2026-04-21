@@ -18,5 +18,11 @@ async def initialize_database():
     await db.users.create_index("session_token", sparse=True)
     await db.votes.create_index([("user_id", 1), ("date", 1)], unique=True)
     await db.votes.create_index("date")
+    await db.allowed_names.create_index("name", unique=True)
 
-    await db.seed_users(settings.allowed_names)
+    # Migrate hardcoded list into allowed_names collection on first run
+    await db.seed_allowed_names(settings.allowed_names)
+
+    # Seed users from allowed_names (source of truth going forward)
+    names = await db.get_allowed_names()
+    await db.seed_users(names)

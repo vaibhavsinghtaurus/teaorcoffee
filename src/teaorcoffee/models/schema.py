@@ -117,4 +117,27 @@ class UpdateUserNameResponse(BaseModel):
     success: bool
     old_name: str
     new_name: str
+class AllowedNamesResponse(BaseModel):
+    names: list[str]
+
+
+class AddAllowedNameRequest(BaseModel):
+    name: str
+    password: str
+
+
+class AddAllowedNameResponse(BaseModel):
+    success: bool
+    name: str
+    message: str
+
+
+class RemoveAllowedNameRequest(BaseModel):
+    name: str
+    password: str
+
+
+class RemoveAllowedNameResponse(BaseModel):
+    success: bool
+    name: str
     message: str

@@ -32,10 +32,53 @@ class MongoDatabase:
     def votes(self):
         return self._db["votes"]
 
+    @property
+    def allowed_names(self):
+        return self._db["allowed_names"]
+
     def _today(self) -> str:
         return date.today().isoformat()
 
     # ---- Setup ----
+
+    async def get_allowed_names(self) -> list[str]:
+        return [doc["name"] async for doc in self.allowed_names.find({}, {"name": 1})]
+
+    async def add_allowed_name(self, name: str) -> bool:
+        """Add name to allowed_names and create user record. Returns False if already exists."""
+        if await self.allowed_names.find_one({"name": name}):
+            return False
+        last = await self.allowed_names.find_one(sort=[("_id", -1)])
+        next_id = (last["_id"] + 1) if last else 1
+        await self.allowed_names.insert_one({
+            "_id": next_id,
+            "name": name,
+            "added_at": datetime.now(timezone.utc).isoformat(),
+        })
+        await self.seed_users([name])
+        return True
+
+    async def remove_allowed_name(self, name: str) -> bool:
+        """Remove name from allowed_names. Returns False if not found."""
+        result = await self.allowed_names.delete_one({"name": name})
+        return result.deleted_count > 0
+
+    async def seed_allowed_names(self, names: list[str]):
+        """Seed allowed_names collection from a list (skips existing). Used on first startup."""
+        existing = {doc["name"] async for doc in self.allowed_names.find({}, {"name": 1})}
+        last = await self.allowed_names.find_one(sort=[("_id", -1)])
+        next_id = (last["_id"] + 1) if last else 1
+        new_docs = []
+        for name in names:
+            if name not in existing:
+                new_docs.append({
+                    "_id": next_id,
+                    "name": name,
+                    "added_at": datetime.now(timezone.utc).isoformat(),
+                })
+                next_id += 1
+        if new_docs:
+            await self.allowed_names.insert_many(new_docs)
 
     async def seed_users(self, names: list[str]):
         existing = {u["name"] async for u in self.users.find({}, {"name": 1})}
