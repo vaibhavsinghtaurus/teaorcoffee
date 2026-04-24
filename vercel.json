@@ -1,0 +1,14 @@
+{
+  "builds": [
+    {
+      "src": "src/teaorcoffee/main.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "src/teaorcoffee/main.py"
+    }
+  ]
+}
