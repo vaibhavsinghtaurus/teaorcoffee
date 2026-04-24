@@ -42,7 +42,7 @@ with bar_mid:
         st.session_state.theme = "dark" if is_dark else "light"
         st.rerun()
 with bar_right:
-    if st.button("Admin →", use_container_width=True):
+    if username == "Vaibhav" and st.button("Admin →", use_container_width=True):
         st.switch_page("pages/2_Admin.py")
     if st.button("Logout", use_container_width=True):
         st.session_state.clear()
