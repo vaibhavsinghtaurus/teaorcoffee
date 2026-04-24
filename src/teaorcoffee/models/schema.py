@@ -141,3 +141,16 @@ class RemoveAllowedNameResponse(BaseModel):
     success: bool
     name: str
     message: str
+
+
+class PlaceOrderForUserRequest(BaseModel):
+    name: str
+    password: str
+    tea: int
+    coffee: int
+
+
+class PlaceOrderForUserResponse(BaseModel):
+    success: bool
+    name: str
+    message: str
