@@ -21,6 +21,8 @@ from src.teaorcoffee.models.schema import (
     AddAllowedNameResponse,
     RemoveAllowedNameRequest,
     RemoveAllowedNameResponse,
+    PlaceOrderForUserRequest,
+    PlaceOrderForUserResponse,
 )
 from src.teaorcoffee.utils.broadcast import broadcast_votes
 
@@ -178,6 +180,42 @@ async def add_allowed_name(request: AddAllowedNameRequest):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"'{name}' is already in the allowed list")
 
     return AddAllowedNameResponse(success=True, name=name, message=f"'{name}' added and user account created")
+
+
+@router.post("/place-order", response_model=PlaceOrderForUserResponse)
+async def place_order_for_user(request: PlaceOrderForUserRequest):
+    """Place an order on behalf of a user"""
+    if request.password != settings.admin_password:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid admin password")
+
+    if request.tea < 0 or request.coffee < 0:
+        raise HTTPException(400, "Tea and coffee must be >= 0")
+
+    if request.tea == 0 and request.coffee == 0:
+        raise HTTPException(400, "At least one drink must be ordered")
+
+    if request.tea > 0 and request.coffee > 0:
+        raise HTTPException(400, "You can only order tea OR coffee, not both")
+
+    if request.tea > 2:
+        raise HTTPException(400, "You can order maximum 2 tea")
+
+    if request.coffee > 1:
+        raise HTTPException(400, "You can order maximum 1 coffee")
+
+    name = request.name.strip()
+    user = await db.get_user_by_name(name)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User '{name}' not found")
+
+    if await db.has_user_voted_today(int(user["id"])):
+        raise HTTPException(409, f"'{name}' has already placed an order today")
+
+    await db.insert_vote(int(user["id"]), request.tea, request.coffee)
+    await broadcast_votes()
+
+    drink = f"{request.tea} tea" if request.tea else f"{request.coffee} coffee"
+    return PlaceOrderForUserResponse(success=True, name=name, message=f"Ordered {drink} for '{name}'")
 
 
 @router.delete("/allowed-names", response_model=RemoveAllowedNameResponse)
