@@ -1,9 +1,38 @@
 import os
 import sys
+import subprocess
+import threading
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import streamlit as st
+
+
+def _start_backend() -> None:
+    """Start FastAPI with uvicorn in a background thread (once per process)."""
+    if st.session_state.get("_backend_started"):
+        return
+    st.session_state["_backend_started"] = True
+
+    def _run() -> None:
+        subprocess.run(
+            [
+                sys.executable, "-m", "uvicorn",
+                "src.teaorcoffee.main:app",
+                "--host", "0.0.0.0",
+                "--port", "8000",
+            ],
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+        )
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    # Give uvicorn a moment to bind
+    time.sleep(2)
+
+
+_start_backend()
 from streamlit_utils.api import login as api_login
 from streamlit_utils.styles import THEME_CSS
 
