@@ -8,6 +8,7 @@ from streamlit_utils.api import (
     admin_add_name,
     admin_get_allowed_names,
     admin_pending_password,
+    admin_place_order,
     admin_remove_all_logins,
     admin_remove_name,
     admin_remove_order,
@@ -18,7 +19,7 @@ from streamlit_utils.api import (
     get_orders_breakdown,
     get_votes,
 )
-from streamlit_utils.styles import THEME_CSS
+from streamlit_utils.styles import get_css
 
 st.set_page_config(
     page_title="Admin — Tea or Coffee",
@@ -27,12 +28,20 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-st.markdown(THEME_CSS, unsafe_allow_html=True)
+if "theme" not in st.session_state:
+    st.session_state.theme = "dark"
+
+st.markdown(get_css(st.session_state.theme), unsafe_allow_html=True)
 
 # ── Top bar ───────────────────────────────────────────────────────────────────
-bar_l, bar_r = st.columns([5, 1])
+bar_l, bar_mid, bar_r = st.columns([4, 1, 1])
 with bar_l:
     st.markdown("<h2 style='margin:0'>🔐 Admin Panel</h2>", unsafe_allow_html=True)
+with bar_mid:
+    is_dark = st.toggle("🌙", value=st.session_state.theme == "dark", key="theme_toggle_admin")
+    if (is_dark and st.session_state.theme != "dark") or (not is_dark and st.session_state.theme != "light"):
+        st.session_state.theme = "dark" if is_dark else "light"
+        st.rerun()
 with bar_r:
     if st.button("← Back to Order", use_container_width=True):
         st.switch_page("pages/1_Order.py")
@@ -106,6 +115,47 @@ with tab_orders:
     except Exception as exc:
         st.warning(f"Could not load orders (need a valid user token): {exc}")
         st.caption("Tip: sign in as a user first so a token is in session state.")
+
+    st.markdown("---")
+
+    # ── Place order on behalf of a user ───────────────────────────────────
+    with st.container(border=True):
+        st.markdown(
+            "<h4 style='color:white;margin:0 0 10px'>Place Order for User</h4>",
+            unsafe_allow_html=True,
+        )
+        po_col1, po_col2 = st.columns(2)
+        with po_col1:
+            po_name = st.text_input(
+                "User name", key="po_name",
+                placeholder="User name…", label_visibility="collapsed",
+            )
+        with po_col2:
+            po_bev = st.selectbox(
+                "Beverage", ["🍵 Tea (max 2)", "☕ Coffee (max 1)"],
+                key="po_bev", label_visibility="collapsed",
+            )
+
+        po_qty = st.number_input(
+            "Quantity", min_value=1,
+            max_value=2 if "Tea" in po_bev else 1,
+            value=1, step=1, key="po_qty",
+        )
+
+        if st.button("PLACE ORDER", key="po_btn", use_container_width=True, type="primary"):
+            if not po_name.strip():
+                st.error("Enter a user name.")
+            else:
+                tea = po_qty if "Tea" in po_bev else 0
+                coffee = po_qty if "Coffee" in po_bev else 0
+                s, r = admin_place_order(po_name.strip(), admin_pw, tea, coffee)
+                if s == 200 and r.get("success"):
+                    st.success(r["message"])
+                    st.rerun()
+                elif s == 409:
+                    st.warning(r.get("detail", "User already ordered today."))
+                else:
+                    st.error(r.get("detail", r.get("message", "Error.")))
 
 
 # ═══════════════════════ USERS TAB ═══════════════════════════════════════════

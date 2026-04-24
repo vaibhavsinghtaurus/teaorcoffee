@@ -121,3 +121,12 @@ def admin_rename_user(old_name: str, new_name: str, password: str) -> tuple[int,
         timeout=10,
     )
     return r.status_code, r.json()
+
+
+def admin_place_order(name: str, password: str, tea: int, coffee: int) -> tuple[int, dict]:
+    r = httpx.post(
+        f"{_base()}/place-order",
+        json={"name": name, "password": password, "tea": tea, "coffee": coffee},
+        timeout=10,
+    )
+    return r.status_code, r.json()

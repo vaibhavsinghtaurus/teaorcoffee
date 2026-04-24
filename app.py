@@ -8,33 +8,29 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import streamlit as st
 
+_backend_started = False
 
 def _start_backend() -> None:
-    """Start FastAPI with uvicorn in a background thread (once per process)."""
-    if st.session_state.get("_backend_started"):
+    global _backend_started
+    if _backend_started:
         return
-    st.session_state["_backend_started"] = True
+    _backend_started = True
 
     def _run() -> None:
         subprocess.run(
-            [
-                sys.executable, "-m", "uvicorn",
-                "src.teaorcoffee.main:app",
-                "--host", "0.0.0.0",
-                "--port", "8000",
-            ],
+            [sys.executable, "-m", "uvicorn", "src.teaorcoffee.main:app",
+             "--host", "0.0.0.0", "--port", "8000"],
             cwd=os.path.dirname(os.path.abspath(__file__)),
         )
 
-    t = threading.Thread(target=_run, daemon=True)
-    t.start()
-    # Give uvicorn a moment to bind
+    threading.Thread(target=_run, daemon=True).start()
     time.sleep(2)
 
 
 _start_backend()
+
 from streamlit_utils.api import login as api_login
-from streamlit_utils.styles import THEME_CSS
+from streamlit_utils.styles import get_css
 
 st.set_page_config(
     page_title="Tea or Coffee ☕",
@@ -43,33 +39,35 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-st.markdown(THEME_CSS, unsafe_allow_html=True)
-
-for key, default in [("token", None), ("username", None)]:
+for key, default in [("token", None), ("username", None), ("theme", "dark")]:
     if key not in st.session_state:
         st.session_state[key] = default
 
+st.markdown(get_css(st.session_state.theme), unsafe_allow_html=True)
+
 if st.session_state.token:
     st.switch_page("pages/1_Order.py")
+
+# ── Theme toggle ──────────────────────────────────────────────────────────────
+_, toggle_col = st.columns([5, 1])
+with toggle_col:
+    is_dark = st.toggle("🌙", value=st.session_state.theme == "dark", key="theme_toggle_login")
+    st.session_state.theme = "dark" if is_dark else "light"
 
 # ── Login card ────────────────────────────────────────────────────────────────
 _, center, _ = st.columns([1, 1.6, 1])
 with center:
     with st.container(border=True):
         st.markdown(
-            "<h1 style='text-align:center;color:white;margin:0;padding:8px 0 4px'>☕ Tea or Coffee</h1>"
-            "<p style='text-align:center;color:rgba(255,255,255,0.75);margin:0 0 20px'>Sign in to place your order</p>",
+            "<h2 style='text-align:center;margin:0;padding:8px 0 4px'>☕ Tea or Coffee</h2>"
+            "<p style='text-align:center;opacity:0.6;margin:0 0 20px'>Sign in to place your order</p>",
             unsafe_allow_html=True,
         )
 
-        name = st.text_input(
-            "Name", placeholder="Enter your name…", label_visibility="collapsed"
-        )
+        name = st.text_input("Name", placeholder="Enter your name…", label_visibility="collapsed")
         password = st.text_input(
-            "Password",
-            placeholder="Password (leave blank if first login)…",
-            type="password",
-            label_visibility="collapsed",
+            "Password", placeholder="Password (leave blank if first login)…",
+            type="password", label_visibility="collapsed",
         )
 
         if st.button("SIGN IN", use_container_width=True, type="primary"):

@@ -12,7 +12,7 @@ from streamlit_utils.api import (
     ws_base,
 )
 from streamlit_utils.chat_client import get_session
-from streamlit_utils.styles import THEME_CSS
+from streamlit_utils.styles import get_css
 
 st.set_page_config(
     page_title="Order — Tea or Coffee",
@@ -21,7 +21,10 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-st.markdown(THEME_CSS, unsafe_allow_html=True)
+if "theme" not in st.session_state:
+    st.session_state.theme = "dark"
+
+st.markdown(get_css(st.session_state.theme), unsafe_allow_html=True)
 
 if not st.session_state.get("token"):
     st.switch_page("app.py")
@@ -30,9 +33,14 @@ token: str = st.session_state.token
 username: str = st.session_state.username
 
 # ── Top bar ───────────────────────────────────────────────────────────────────
-bar_left, bar_right = st.columns([5, 1])
+bar_left, bar_mid, bar_right = st.columns([4, 1, 1])
 with bar_left:
     st.markdown(f"<h3 style='margin:0'>Good day, <b>{username}</b> 👋</h3>", unsafe_allow_html=True)
+with bar_mid:
+    is_dark = st.toggle("🌙", value=st.session_state.theme == "dark", key="theme_toggle")
+    if (is_dark and st.session_state.theme != "dark") or (not is_dark and st.session_state.theme != "light"):
+        st.session_state.theme = "dark" if is_dark else "light"
+        st.rerun()
 with bar_right:
     if st.button("Admin →", use_container_width=True):
         st.switch_page("pages/2_Admin.py")
