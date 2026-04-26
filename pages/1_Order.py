@@ -160,10 +160,12 @@ with right:
             if chat.error:
                 st.warning(f"Chat disconnected: {chat.error}")
 
+            # Clear input BEFORE widget is instantiated
+            if st.session_state.pop("_chat_clear", False):
+                st.session_state.chat_input = ""
+
             send_col, btn_col = st.columns([4, 1])
             with send_col:
-                if "chat_input" not in st.session_state:
-                    st.session_state.chat_input = ""
                 msg_text = st.text_input(
                     "msg",
                     placeholder="Type a message…",
@@ -174,7 +176,7 @@ with right:
                 if st.button("SEND", use_container_width=True, type="primary", key="chat_send"):
                     if msg_text.strip():
                         chat.send(msg_text.strip())
-                        st.session_state.chat_input = ""
+                        st.session_state["_chat_clear"] = True
                         st.rerun()
 
     chat_card()

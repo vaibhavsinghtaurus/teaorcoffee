@@ -1,5 +1,6 @@
 import os
 import sys
+import socket
 import subprocess
 import threading
 import time
@@ -8,13 +9,15 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import streamlit as st
 
-_backend_started = False
+
+def _port_free(port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(("localhost", port)) != 0
+
 
 def _start_backend() -> None:
-    global _backend_started
-    if _backend_started:
-        return
-    _backend_started = True
+    if not _port_free(8000):
+        return  # already running
 
     def _run() -> None:
         subprocess.run(
