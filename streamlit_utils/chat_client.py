@@ -53,7 +53,7 @@ class ChatSession:
                     while True:
                         try:
                             text = self._outbox.get_nowait()
-                            await ws.send(text)
+                            await ws.send(json.dumps({"message": text}))
                         except queue.Empty:
                             await asyncio.sleep(0.05)
 
