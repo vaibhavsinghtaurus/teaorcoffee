@@ -57,8 +57,8 @@ left, right = st.columns(2, gap="large")
 with left:
     with st.container(border=True):
         st.markdown(
-            "<h2 style='text-align:center;color:white;margin:0'>Place Your Order</h2>"
-            "<p style='text-align:center;color:rgba(255,255,255,0.75);margin:4px 0 16px'>Select your beverage and quantity</p>",
+            "<h2 style='text-align:center;margin:0'>Place Your Order</h2>"
+            "<p style='text-align:center;opacity:0.75;margin:4px 0 16px'>Select your beverage and quantity</p>",
             unsafe_allow_html=True,
         )
 
@@ -77,7 +77,7 @@ with left:
 
             st.markdown(
                 f"<div class='order-preview'>"
-                f"  <span style='color:white;font-size:15px'>Your order:</span>"
+                f"  <span style='font-size:15px'>Your order:</span>"
                 f"  <span class='order-badge'>{qty} {emoji} {bev}</span>"
                 f"</div>",
                 unsafe_allow_html=True,
@@ -100,7 +100,7 @@ with left:
             emoji = "🍵" if bev_type == "tea" else "☕"
             st.markdown(
                 f"<div class='order-preview'>"
-                f"  <span style='color:white;font-size:15px'>Your order:</span>"
+                f"  <span style='font-size:15px'>Your order:</span>"
                 f"  <span class='order-badge'>{qty} {emoji}</span>"
                 f"</div>",
                 unsafe_allow_html=True,
@@ -133,8 +133,8 @@ with right:
 
         with st.container(border=True):
             st.markdown(
-                f"<h2 style='text-align:center;color:white;margin:0'>💬 Live Chat</h2>"
-                f"<p style='text-align:center;color:rgba(255,255,255,0.75);margin:4px 0 16px'>"
+                f"<h2 style='text-align:center;margin:0'>💬 Live Chat</h2>"
+                f"<p style='text-align:center;opacity:0.75;margin:4px 0 16px'>"
                 f"You are: <b>{username}</b></p>",
                 unsafe_allow_html=True,
             )
