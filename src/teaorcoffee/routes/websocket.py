@@ -2,7 +2,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from src.teaorcoffee.core.state import connections
 from src.teaorcoffee.core.auth import get_current_user_from_websocket
-from src.teaorcoffee.core.database import db
+from src.teaorcoffee.utils.broadcast import _build_payload
 
 router = APIRouter()
 
@@ -19,9 +19,8 @@ async def votes_socket(websocket: WebSocket):
         # Add to connections
         connections.add(websocket)
 
-        # Send current vote totals
-        votes = await db.get_today_totals()
-        await websocket.send_json(votes)
+        # Send current totals + breakdown
+        await websocket.send_json(await _build_payload())
 
         # Keep connection alive
         while True:

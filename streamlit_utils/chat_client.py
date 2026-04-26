@@ -76,3 +76,46 @@ def get_session(token: str, ws_url: str) -> ChatSession:
         if session is None or not session.alive:
             _sessions[token] = ChatSession(token, ws_url)
         return _sessions[token]
+
+
+# ── Vote session ───────────────────────────────────────────────────────────────
+
+_vote_sessions: dict[str, "VoteSession"] = {}
+
+
+class VoteSession:
+    def __init__(self, ws_url: str) -> None:
+        self.ws_url = ws_url
+        self.data: dict = {"tea": 0, "coffee": 0, "orders": []}
+        self.error: Optional[str] = None
+        self._thread = threading.Thread(target=self._run, daemon=True, name="votes-ws")
+        self._thread.start()
+
+    def _run(self) -> None:
+        asyncio.run(self._main())
+
+    async def _main(self) -> None:
+        if not _HAS_WS:
+            self.error = "websockets package not installed"
+            return
+        try:
+            async with websockets.connect(self.ws_url, ping_interval=20) as ws:
+                async for raw in ws:
+                    try:
+                        self.data = json.loads(raw)
+                    except Exception:
+                        pass
+        except Exception as exc:
+            self.error = str(exc)
+
+    @property
+    def alive(self) -> bool:
+        return self._thread.is_alive()
+
+
+def get_vote_session(token: str, ws_url: str) -> VoteSession:
+    with _lock:
+        session = _vote_sessions.get(token)
+        if session is None or not session.alive:
+            _vote_sessions[token] = VoteSession(ws_url)
+        return _vote_sessions[token]

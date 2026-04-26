@@ -5,13 +5,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import streamlit as st
 from streamlit_utils.api import (
-    get_orders_breakdown,
     get_my_vote,
-    get_votes,
     place_vote,
     ws_base,
 )
-from streamlit_utils.chat_client import get_session
+from streamlit_utils.chat_client import get_session, get_vote_session
 from streamlit_utils.styles import get_css
 
 st.set_page_config(
@@ -62,10 +60,12 @@ with left:
             unsafe_allow_html=True,
         )
 
-        try:
-            my_vote = get_my_vote(token)
-        except Exception:
-            my_vote = None
+        if "my_vote" not in st.session_state:
+            try:
+                st.session_state.my_vote = get_my_vote(token)
+            except Exception:
+                st.session_state.my_vote = None
+        my_vote = st.session_state.my_vote
 
         if my_vote:
             tea_qty = my_vote["tea"]
@@ -112,8 +112,10 @@ with left:
                 with st.spinner("Placing order…"):
                     status, resp = place_vote(token, tea, coffee)
                 if status == 201:
+                    st.session_state.pop("my_vote", None)
                     st.rerun()
                 elif status == 409:
+                    st.session_state.pop("my_vote", None)
                     st.warning("You've already ordered today!")
                     st.rerun()
                 elif status == 400:
@@ -122,11 +124,14 @@ with left:
                     st.error(resp.get("detail", "Something went wrong."))
 
 
+# ── Sessions ──────────────────────────────────────────────────────────────────
+ws_url = f"{ws_base()}/ws/chat?token={token}"
+chat = get_session(token, ws_url)
+
+vote_session = get_vote_session(token, f"{ws_base()}/ws/votes?token={token}")
+
 # ── CHAT CARD ─────────────────────────────────────────────────────────────────
 with right:
-    ws_url = f"{ws_base()}/ws/chat?token={token}"
-    chat = get_session(token, ws_url)
-
     @st.fragment(run_every=3)
     def chat_card() -> None:
         messages = list(chat.messages[-30:])
@@ -187,30 +192,27 @@ st.markdown("---")
 st.markdown("### 📊 Total Orders (Live)")
 
 
-@st.fragment(run_every=5)
+@st.fragment(run_every=3)
 def live_totals() -> None:
-    try:
-        votes = get_votes(token)
-        breakdown = get_orders_breakdown(token)
+    data = vote_session.data
+    orders = data.get("orders", [])
 
-        m1, m2, m3 = st.columns(3)
-        m1.metric("🍵 Tea", votes["tea"])
-        m2.metric("☕ Coffee", votes["coffee"])
-        m3.metric("👥 Total Orders", len(breakdown["orders"]))
+    m1, m2, m3 = st.columns(3)
+    m1.metric("🍵 Tea", data.get("tea", 0))
+    m2.metric("☕ Coffee", data.get("coffee", 0))
+    m3.metric("👥 Total Orders", len(orders))
 
-        if breakdown["orders"]:
-            rows = []
-            for o in breakdown["orders"]:
-                if o["tea"] > 0:
-                    bev = f"🍵 Tea ×{o['tea']}"
-                else:
-                    bev = f"☕ Coffee ×{o['coffee']}"
-                rows.append({"Name": o["name"], "Order": bev})
-            st.table(rows)
-        else:
-            st.info("No orders placed today yet.")
-    except Exception as exc:
-        st.warning(f"Could not load totals: {exc}")
+    if orders:
+        rows = []
+        for o in orders:
+            bev = f"🍵 Tea ×{o['tea']}" if o["tea"] > 0 else f"☕ Coffee ×{o['coffee']}"
+            rows.append({"Name": o["name"], "Order": bev})
+        st.table(rows)
+    else:
+        st.info("No orders placed today yet.")
+
+    if vote_session.error:
+        st.warning(f"Live updates disconnected: {vote_session.error}")
 
 
 live_totals()
