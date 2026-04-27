@@ -91,7 +91,6 @@ class MongoDatabase:
                 new_users.append({
                     "_id": next_id,
                     "name": name,
-                    "nickname": None,
                     "is_active": 1,
                     "is_disabled": 0,
                     "session_token": None,

@@ -16,7 +16,15 @@ async def initialize_database():
 
     await db.users.create_index("name", unique=True)
     await db.users.create_index("session_token", sparse=True)
+
+    # Drop and recreate nickname index to ensure it is sparse
+    # (an earlier version may have created it without sparse=True)
+    try:
+        await db.users.drop_index("nickname_1")
+    except Exception:
+        pass
     await db.users.create_index("nickname", unique=True, sparse=True)
+
     await db.votes.create_index([("user_id", 1), ("date", 1)], unique=True)
     await db.votes.create_index("date")
     await db.allowed_names.create_index("name", unique=True)
@@ -28,6 +36,5 @@ async def initialize_database():
     names = await db.get_allowed_names()
     await db.seed_users(names)
 
-    # Backfill fields added after initial schema
+    # Backfill is_disabled for users that predate that field
     await db.users.update_many({"is_disabled": {"$exists": False}}, {"$set": {"is_disabled": 0}})
-    await db.users.update_many({"nickname": {"$exists": False}}, {"$set": {"nickname": None}})
