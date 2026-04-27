@@ -253,6 +253,12 @@ async def set_user_nickname(request: SetNicknameRequest):
 
     user = await db.get_user_by_name(name)
     if not user:
+        allowed = await db.get_allowed_names()
+        if name not in allowed:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User '{name}' not found")
+        await db.seed_users([name])
+        user = await db.get_user_by_name(name)
+    if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User '{name}' not found")
 
     if nickname:
