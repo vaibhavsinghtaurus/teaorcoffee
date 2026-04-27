@@ -130,3 +130,12 @@ def admin_place_order(name: str, password: str, tea: int, coffee: int) -> tuple[
         timeout=10,
     )
     return r.status_code, r.json()
+
+
+def admin_set_nickname(name: str, nickname: str | None, password: str) -> tuple[int, dict]:
+    r = httpx.put(
+        f"{_base()}/users/nickname",
+        json={"name": name, "nickname": nickname, "password": password},
+        timeout=10,
+    )
+    return r.status_code, r.json()

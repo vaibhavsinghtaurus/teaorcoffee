@@ -91,6 +91,7 @@ class MongoDatabase:
                 new_users.append({
                     "_id": next_id,
                     "name": name,
+                    "nickname": None,
                     "is_active": 1,
                     "is_disabled": 0,
                     "session_token": None,
@@ -106,6 +107,11 @@ class MongoDatabase:
             {"is_disabled": {"$exists": False}},
             {"$set": {"is_disabled": 0}},
         )
+        # Patch existing users that predate the nickname field
+        await self.users.update_many(
+            {"nickname": {"$exists": False}},
+            {"$set": {"nickname": None}},
+        )
 
     # ---- Users ----
 
@@ -114,6 +120,16 @@ class MongoDatabase:
         if user:
             user["id"] = user["_id"]
         return user
+
+    async def get_user_by_nickname(self, nickname: str) -> Optional[dict]:
+        user = await self.users.find_one({"nickname": {"$regex": f"^{nickname}$", "$options": "i"}})
+        if user:
+            user["id"] = user["_id"]
+        return user
+
+    async def set_nickname(self, user_id: int, nickname: Optional[str]) -> bool:
+        result = await self.users.update_one({"_id": user_id}, {"$set": {"nickname": nickname}})
+        return result.matched_count > 0
 
     async def get_user_by_token(self, token: str) -> Optional[dict]:
         if not token:

@@ -32,6 +32,7 @@ class LoginResponse(BaseModel):
     message: str
     token: str | None = None
     password_required: bool = False
+    nickname: str | None = None
 
 
 class AuthUser(BaseModel):
@@ -40,6 +41,7 @@ class AuthUser(BaseModel):
     id: int
     name: str
     token: str
+    nickname: str | None = None
 
 
 class ResetRequest(BaseModel):
@@ -153,4 +155,17 @@ class PlaceOrderForUserRequest(BaseModel):
 class PlaceOrderForUserResponse(BaseModel):
     success: bool
     name: str
+    message: str
+
+
+class SetNicknameRequest(BaseModel):
+    name: str
+    nickname: str | None = None
+    password: str
+
+
+class SetNicknameResponse(BaseModel):
+    success: bool
+    name: str
+    nickname: str | None
     message: str

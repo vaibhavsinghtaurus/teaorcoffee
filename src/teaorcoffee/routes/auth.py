@@ -21,6 +21,9 @@ async def login(request: LoginRequest):
     user = await db.get_user_by_name(name)
 
     if not user:
+        user = await db.get_user_by_nickname(name)
+
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Name not in allowed list",
@@ -33,15 +36,17 @@ async def login(request: LoginRequest):
         )
 
     stored_hash = user.get("password_hash")
+    display_name = user["name"]
 
     if not stored_hash:
         # No password set yet — require the client to provide one
         if not request.password:
             return LoginResponse(
                 success=False,
-                name=name,
+                name=display_name,
                 message="Password setup required",
                 password_required=True,
+                nickname=user.get("nickname"),
             )
         # First time setting password — hash and store it
         new_hash = bcrypt.hashpw(request.password.encode(), bcrypt.gensalt()).decode()
@@ -51,9 +56,10 @@ async def login(request: LoginRequest):
         if not request.password:
             return LoginResponse(
                 success=False,
-                name=name,
+                name=display_name,
                 message="Password required",
                 password_required=True,
+                nickname=user.get("nickname"),
             )
         if not bcrypt.checkpw(request.password.encode(), stored_hash.encode()):
             raise HTTPException(
@@ -66,7 +72,8 @@ async def login(request: LoginRequest):
 
     return LoginResponse(
         success=True,
-        name=name,
-        message=f"Welcome {name}!",
+        name=display_name,
+        message=f"Welcome {display_name}!",
         token=token,
+        nickname=user.get("nickname"),
     )

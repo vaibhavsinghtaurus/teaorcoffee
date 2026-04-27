@@ -23,6 +23,8 @@ from src.teaorcoffee.models.schema import (
     RemoveAllowedNameResponse,
     PlaceOrderForUserRequest,
     PlaceOrderForUserResponse,
+    SetNicknameRequest,
+    SetNicknameResponse,
 )
 from src.teaorcoffee.utils.broadcast import broadcast_votes
 
@@ -233,3 +235,32 @@ async def remove_allowed_name(request: RemoveAllowedNameRequest):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"'{name}' not found in allowed list")
 
     return RemoveAllowedNameResponse(success=True, name=name, message=f"'{name}' removed from allowed list")
+
+
+@router.put("/users/nickname", response_model=SetNicknameResponse)
+async def set_user_nickname(request: SetNicknameRequest):
+    """Set or clear a user's nickname. Pass nickname=null to remove it."""
+    if request.password != settings.admin_password:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid admin password")
+
+    name = request.name.strip()
+    if not name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Name cannot be empty")
+
+    nickname = request.nickname.strip() if request.nickname else None
+    if nickname == "":
+        nickname = None
+
+    user = await db.get_user_by_name(name)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User '{name}' not found")
+
+    if nickname:
+        existing = await db.get_user_by_nickname(nickname)
+        if existing and existing["_id"] != user["_id"]:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Nickname '{nickname}' is already taken")
+
+    await db.set_nickname(int(user["id"]), nickname)
+
+    action = f"set to '{nickname}'" if nickname else "cleared"
+    return SetNicknameResponse(success=True, name=name, nickname=nickname, message=f"Nickname {action} for '{name}'")

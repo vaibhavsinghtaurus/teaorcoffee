@@ -16,6 +16,7 @@ async def initialize_database():
 
     await db.users.create_index("name", unique=True)
     await db.users.create_index("session_token", sparse=True)
+    await db.users.create_index("nickname", unique=True, sparse=True)
     await db.votes.create_index([("user_id", 1), ("date", 1)], unique=True)
     await db.votes.create_index("date")
     await db.allowed_names.create_index("name", unique=True)

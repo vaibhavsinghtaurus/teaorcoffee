@@ -15,6 +15,7 @@ from streamlit_utils.api import (
     admin_rename_user,
     admin_reset,
     admin_set_disabled,
+    admin_set_nickname,
     admin_unbind,
     get_orders_breakdown,
     get_votes,
@@ -225,6 +226,31 @@ with tab_users:
                     st.session_state.clear()
                 else:
                     st.error(r.get("detail", "Error"))
+
+    st.markdown("---")
+    col_u5, _ = st.columns(2, gap="large")
+
+    # ── Set / clear nickname ───────────────────────────────────────────────
+    with col_u5:
+        with st.container(border=True):
+            st.markdown("<h4 style='color:white;margin:0 0 8px'>Set Nickname</h4>", unsafe_allow_html=True)
+            st.caption("Leave nickname blank to clear it.")
+            nick_name = st.text_input("User name", key="nick_username", label_visibility="collapsed",
+                                      placeholder="User name…")
+            nick_value = st.text_input("Nickname (optional)", key="nick_value", label_visibility="collapsed",
+                                       placeholder="Nickname… (blank to clear)")
+            if st.button("Save Nickname", key="nick_btn", use_container_width=True):
+                if nick_name.strip():
+                    nickname_to_set = nick_value.strip() if nick_value.strip() else None
+                    s, r = admin_set_nickname(nick_name.strip(), nickname_to_set, admin_pw)
+                    if s == 200 and r.get("success"):
+                        st.success(r["message"])
+                    elif s == 409:
+                        st.warning(r.get("detail", "Nickname already taken."))
+                    else:
+                        st.error(r.get("detail", r.get("message", "Error")))
+                else:
+                    st.error("Enter a user name.")
 
     st.markdown("---")
 
