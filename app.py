@@ -8,7 +8,6 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 
 def _port_free(port: int) -> bool:
@@ -68,43 +67,15 @@ with center:
             unsafe_allow_html=True,
         )
 
-        name = st.text_input("Name", placeholder="Enter your name…", label_visibility="collapsed")
-        password = st.text_input(
-            "Password", placeholder="Password (leave blank if first login)…",
-            type="password", label_visibility="collapsed",
-        )
+        with st.form("login_form"):
+            name = st.text_input("Name", placeholder="Enter your name…", label_visibility="collapsed", autocomplete="username")
+            password = st.text_input(
+                "Password", placeholder="Password (leave blank if first login)…",
+                type="password", label_visibility="collapsed", autocomplete="current-password",
+            )
+            submitted = st.form_submit_button("SIGN IN", use_container_width=True, type="primary")
 
-        # Fix browser autofill not triggering React's onChange: poll for autofilled
-        # inputs and dispatch a native input event so React syncs its controlled state.
-        components.html(
-            """
-            <script>
-            (function() {
-                const setter = Object.getOwnPropertyDescriptor(
-                    window.parent.HTMLInputElement.prototype, 'value'
-                ).set;
-                function syncAutofill() {
-                    window.parent.document
-                        .querySelectorAll('input[type="text"], input[type="password"]')
-                        .forEach(function(el) {
-                            if (el.value && el.dataset.autofillSynced !== el.value) {
-                                setter.call(el, el.value);
-                                el.dispatchEvent(new Event('input', { bubbles: true }));
-                                el.dataset.autofillSynced = el.value;
-                            }
-                        });
-                }
-                const intervalId = setInterval(syncAutofill, 300);
-                window.addEventListener('beforeunload', function() {
-                    clearInterval(intervalId);
-                });
-            })();
-            </script>
-            """,
-            height=0,
-        )
-
-        if st.button("SIGN IN", use_container_width=True, type="primary"):
+        if submitted:
             if not name.strip():
                 st.error("Please enter your name.")
             else:
