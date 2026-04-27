@@ -27,3 +27,7 @@ async def initialize_database():
     # Seed users from allowed_names (source of truth going forward)
     names = await db.get_allowed_names()
     await db.seed_users(names)
+
+    # Backfill fields added after initial schema
+    await db.users.update_many({"is_disabled": {"$exists": False}}, {"$set": {"is_disabled": 0}})
+    await db.users.update_many({"nickname": {"$exists": False}}, {"$set": {"nickname": None}})
