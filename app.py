@@ -48,8 +48,29 @@ for key, default in [("token", None), ("username", None), ("theme", "dark")]:
 
 st.markdown(get_css(st.session_state.theme), unsafe_allow_html=True)
 
+# ── Restore session from localStorage (via query-param bridge) ────────────────
+if not st.session_state.token:
+    ls_token = st.query_params.get("ls_token")
+    ls_user = st.query_params.get("ls_user", "")
+    if ls_token:
+        st.session_state.token = ls_token
+        st.session_state.username = ls_user
+        st.query_params.clear()
+
 if st.session_state.token:
     st.switch_page("pages/1_Order.py")
+
+# No token — inject JS to check localStorage and redirect back with it as a query param
+st.html("""<img src="" onerror="(function(){
+    const t=localStorage.getItem('toc_token');
+    const u=localStorage.getItem('toc_username')||'';
+    if(t){
+        const url=new URL(window.location.href);
+        url.searchParams.set('ls_token',t);
+        url.searchParams.set('ls_user',u);
+        window.location.replace(url.toString());
+    }
+})()" style="display:none"/>""")
 
 # ── Theme toggle ──────────────────────────────────────────────────────────────
 _, toggle_col = st.columns([5, 1])
@@ -83,8 +104,11 @@ with center:
                     try:
                         result = api_login(name.strip(), password.strip() or None)
                         if result.get("success"):
-                            st.session_state.token = result["token"]
+                            _tok = result["token"]
+                            _usr = result["name"].replace("'", "\\'")
+                            st.session_state.token = _tok
                             st.session_state.username = result["name"]
+                            st.html(f"<img src='' onerror=\"localStorage.setItem('toc_token','{_tok}');localStorage.setItem('toc_username','{_usr}');\" style='display:none'/>")
                             st.rerun()
                         elif result.get("password_required"):
                             st.error("Password required — please enter your password.")

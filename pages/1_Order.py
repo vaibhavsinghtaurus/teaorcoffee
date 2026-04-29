@@ -27,6 +27,12 @@ st.markdown(get_css(st.session_state.theme), unsafe_allow_html=True)
 if not st.session_state.get("token"):
     st.switch_page("app.py")
 
+# ── Logout handler (clears localStorage then navigates) ───────────────────────
+if st.session_state.pop("_do_logout", False):
+    st.session_state.clear()
+    st.html("<img src='' onerror=\"localStorage.removeItem('toc_token');localStorage.removeItem('toc_username');window.location.href='/';\" style='display:none'/>")
+    st.stop()
+
 token: str = st.session_state.token
 username: str = st.session_state.username
 
@@ -43,8 +49,8 @@ with bar_right:
     if username == "Vaibhav" and st.button("Admin →", use_container_width=True):
         st.switch_page("pages/2_Admin.py")
     if st.button("Logout", use_container_width=True):
-        st.session_state.clear()
-        st.switch_page("app.py")
+        st.session_state._do_logout = True
+        st.rerun()
 
 st.markdown("<div style='margin:8px 0'></div>", unsafe_allow_html=True)
 
