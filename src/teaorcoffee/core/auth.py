@@ -29,7 +29,7 @@ async def get_current_user(request: Request) -> AuthUser:
             detail="password_setup_required",
         )
 
-    return AuthUser(id=int(user["id"]), name=user["name"], token=user["session_token"])
+    return AuthUser(id=int(user["id"]), name=user["name"], token=user["session_token"], nickname=user.get("nickname"))
 
 
 async def get_current_user_from_websocket(websocket: WebSocket) -> AuthUser:
@@ -58,4 +58,4 @@ async def get_current_user_from_websocket(websocket: WebSocket) -> AuthUser:
             detail="password_setup_required",
         )
 
-    return AuthUser(id=int(user["id"]), name=user["name"], token=user["session_token"])
+    return AuthUser(id=int(user["id"]), name=user["name"], token=user["session_token"], nickname=user.get("nickname"))

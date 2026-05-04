@@ -21,6 +21,10 @@ from src.teaorcoffee.models.schema import (
     AddAllowedNameResponse,
     RemoveAllowedNameRequest,
     RemoveAllowedNameResponse,
+    PlaceOrderForUserRequest,
+    PlaceOrderForUserResponse,
+    SetNicknameRequest,
+    SetNicknameResponse,
 )
 from src.teaorcoffee.utils.broadcast import broadcast_votes
 
@@ -180,6 +184,42 @@ async def add_allowed_name(request: AddAllowedNameRequest):
     return AddAllowedNameResponse(success=True, name=name, message=f"'{name}' added and user account created")
 
 
+@router.post("/place-order", response_model=PlaceOrderForUserResponse)
+async def place_order_for_user(request: PlaceOrderForUserRequest):
+    """Place an order on behalf of a user"""
+    if request.password != settings.admin_password:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid admin password")
+
+    if request.tea < 0 or request.coffee < 0:
+        raise HTTPException(400, "Tea and coffee must be >= 0")
+
+    if request.tea == 0 and request.coffee == 0:
+        raise HTTPException(400, "At least one drink must be ordered")
+
+    if request.tea > 0 and request.coffee > 0:
+        raise HTTPException(400, "You can only order tea OR coffee, not both")
+
+    if request.tea > 2:
+        raise HTTPException(400, "You can order maximum 2 tea")
+
+    if request.coffee > 1:
+        raise HTTPException(400, "You can order maximum 1 coffee")
+
+    name = request.name.strip()
+    user = await db.get_user_by_name(name)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User '{name}' not found")
+
+    if await db.has_user_voted_today(int(user["id"])):
+        raise HTTPException(409, f"'{name}' has already placed an order today")
+
+    await db.insert_vote(int(user["id"]), request.tea, request.coffee)
+    await broadcast_votes()
+
+    drink = f"{request.tea} tea" if request.tea else f"{request.coffee} coffee"
+    return PlaceOrderForUserResponse(success=True, name=name, message=f"Ordered {drink} for '{name}'")
+
+
 @router.delete("/allowed-names", response_model=RemoveAllowedNameResponse)
 async def remove_allowed_name(request: RemoveAllowedNameRequest):
     """Remove a name from allowed_names (existing user record is preserved)"""
@@ -195,3 +235,38 @@ async def remove_allowed_name(request: RemoveAllowedNameRequest):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"'{name}' not found in allowed list")
 
     return RemoveAllowedNameResponse(success=True, name=name, message=f"'{name}' removed from allowed list")
+
+
+@router.put("/users/nickname", response_model=SetNicknameResponse)
+async def set_user_nickname(request: SetNicknameRequest):
+    """Set or clear a user's nickname. Pass nickname=null to remove it."""
+    if request.password != settings.admin_password:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid admin password")
+
+    name = request.name.strip()
+    if not name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Name cannot be empty")
+
+    nickname = request.nickname.strip() if request.nickname else None
+    if nickname == "":
+        nickname = None
+
+    user = await db.get_user_by_name(name)
+    if not user:
+        allowed = await db.get_allowed_names()
+        if name not in allowed:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User '{name}' not found")
+        await db.seed_users([name])
+        user = await db.get_user_by_name(name)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User '{name}' not found")
+
+    if nickname:
+        existing = await db.get_user_by_nickname(nickname)
+        if existing and existing["_id"] != user["_id"]:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Nickname '{nickname}' is already taken")
+
+    await db.set_nickname(int(user["id"]), nickname)
+
+    action = f"set to '{nickname}'" if nickname else "cleared"
+    return SetNicknameResponse(success=True, name=name, nickname=nickname, message=f"Nickname {action} for '{name}'")

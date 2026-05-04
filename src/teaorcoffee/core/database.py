@@ -101,12 +101,6 @@ class MongoDatabase:
         if new_users:
             await self.users.insert_many(new_users)
 
-        # Patch existing users that predate the is_disabled field
-        await self.users.update_many(
-            {"is_disabled": {"$exists": False}},
-            {"$set": {"is_disabled": 0}},
-        )
-
     # ---- Users ----
 
     async def get_user_by_name(self, name: str) -> Optional[dict]:
@@ -114,6 +108,16 @@ class MongoDatabase:
         if user:
             user["id"] = user["_id"]
         return user
+
+    async def get_user_by_nickname(self, nickname: str) -> Optional[dict]:
+        user = await self.users.find_one({"nickname": {"$regex": f"^{nickname}$", "$options": "i"}})
+        if user:
+            user["id"] = user["_id"]
+        return user
+
+    async def set_nickname(self, user_id: int, nickname: Optional[str]) -> bool:
+        result = await self.users.update_one({"_id": user_id}, {"$set": {"nickname": nickname}})
+        return result.matched_count > 0
 
     async def get_user_by_token(self, token: str) -> Optional[dict]:
         if not token:
