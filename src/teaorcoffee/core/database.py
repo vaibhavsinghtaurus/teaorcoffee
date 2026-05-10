@@ -203,6 +203,48 @@ class MongoDatabase:
         result = await self.votes.delete_one({"user_id": user_id, "date": self._today()})
         return result.deleted_count > 0
 
+    # ---- CS Stats ----
+
+    async def get_cs_stats(self, user_id: int) -> dict:
+        user = await self.users.find_one({"_id": user_id}, {"cs_stats": 1})
+        if not user or "cs_stats" not in user:
+            return {"kills": 0, "deaths": 0, "headshots": 0, "wins": 0, "losses": 0, "sessions": 0}
+        return user["cs_stats"]
+
+    async def increment_cs_stat(self, user_id: int, field: str, amount: int = 1):
+        await self.users.update_one(
+            {"_id": user_id},
+            {"$inc": {f"cs_stats.{field}": amount}},
+        )
+
+    async def get_all_cs_stats(self) -> list[dict]:
+        pipeline = [
+            {"$match": {"cs_stats": {"$exists": True}}},
+            {"$project": {
+                "name": 1,
+                "nickname": 1,
+                "cs_stats": 1,
+            }},
+        ]
+        result = []
+        async for doc in self.users.aggregate(pipeline):
+            stats = doc.get("cs_stats", {})
+            kills = stats.get("kills", 0)
+            deaths = stats.get("deaths", 0)
+            result.append({
+                "name": doc["name"],
+                "nickname": doc.get("nickname"),
+                "kills": kills,
+                "deaths": deaths,
+                "headshots": stats.get("headshots", 0),
+                "wins": stats.get("wins", 0),
+                "losses": stats.get("losses", 0),
+                "sessions": stats.get("sessions", 0),
+                "kd_ratio": round(kills / deaths, 2) if deaths > 0 else float(kills),
+            })
+        result.sort(key=lambda x: x["kills"], reverse=True)
+        return result
+
     async def get_today_breakdown(self) -> list[dict]:
         pipeline = [
             {"$match": {"date": self._today()}},

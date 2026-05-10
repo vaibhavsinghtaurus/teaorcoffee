@@ -1,4 +1,4 @@
-from src.teaorcoffee.core.state import connections
+from src.teaorcoffee.core.state import connections, cs_connections
 from src.teaorcoffee.core.database import db
 
 
@@ -24,3 +24,18 @@ async def broadcast_votes():
             dead.add(ws)
 
     connections.difference_update(dead)
+
+
+async def broadcast_cs_stats():
+    """Broadcast updated CS leaderboard to all CS WebSocket clients"""
+    players = await db.get_all_cs_stats()
+    payload = {"type": "cs_stats", "players": players}
+
+    dead = set()
+    for ws in cs_connections:
+        try:
+            await ws.send_json(payload)
+        except Exception:
+            dead.add(ws)
+
+    cs_connections.difference_update(dead)

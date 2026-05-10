@@ -169,3 +169,25 @@ class SetNicknameResponse(BaseModel):
     name: str
     nickname: str | None
     message: str
+
+
+class CSEventRequest(BaseModel):
+    event: str  # kill | death | headshot | round_win | round_loss | session_start | session_end
+    weapon: str | None = None
+    victim: str | None = None
+
+
+class CSStatsResponse(BaseModel):
+    name: str
+    nickname: str | None = None
+    kills: int
+    deaths: int
+    headshots: int
+    wins: int
+    losses: int
+    sessions: int
+    kd_ratio: float
+
+
+class CSLeaderboardResponse(BaseModel):
+    players: list[CSStatsResponse]
