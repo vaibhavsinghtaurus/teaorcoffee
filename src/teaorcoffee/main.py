@@ -64,4 +64,5 @@ app.include_router(chat.router)
 app.include_router(cs.router)
 
 _static_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "static")
+os.makedirs(os.path.join(_static_dir, "assets"), exist_ok=True)
 app.mount("/game", StaticFiles(directory=_static_dir, html=True), name="static")
