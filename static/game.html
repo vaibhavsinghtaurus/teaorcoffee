@@ -371,27 +371,7 @@ async function init() {
     connectSignaling();
     pollServerStatus();
 
-    // 1. Wait for server-side setup to finish (runs once on first boot)
-    setLoadMsg('Server Setup', 'Server is preparing game assets for the first time…');
-    setProgress(0, 'Waiting for server');
-
-    await (async () => {
-        for (let attempt = 0; attempt < 120; attempt++) {   // wait up to 20 min
-            try {
-                const r = await fetch(`${API}/cs/setup/status`);
-                const d = await r.json();
-                if (d.ready) break;
-
-                const parts = [];
-                if (!d.assets_ready) parts.push('downloading assets');
-                if (!d.hlds_ready)   parts.push('downloading server');
-                setLoadMsg('Server Setup', `Server is ${parts.join(' & ')} — this only happens once`);
-            } catch (_) {}
-            await new Promise(res => setTimeout(res, 10_000));  // poll every 10 s
-        }
-    })();
-
-    // 3. Fetch server status to get the game server address
+    // Fetch server status to get the game server address
     let serverIp = '127.0.0.1';
     let serverPort = '27015';
     try {
