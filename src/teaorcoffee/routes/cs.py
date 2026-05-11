@@ -1,10 +1,7 @@
-import logging
 import subprocess
 import sys
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
-
-log = logging.getLogger("cs.download")
 
 _ROOT      = Path(__file__).resolve().parents[4]
 _VALVE_ZIP = _ROOT / "static" / "assets" / "valve.zip"
@@ -13,7 +10,7 @@ _HLDS_DIR  = _ROOT / "hlds"
 from src.teaorcoffee.core.auth import get_current_user, get_current_user_from_websocket
 from src.teaorcoffee.core.config import settings
 from src.teaorcoffee.core.database import db
-from src.teaorcoffee.core.state import cs_connections, signal_rooms
+from src.teaorcoffee.core.state import cs_connections, signal_rooms, download_progress
 from src.teaorcoffee.models.schema import (
     AuthUser,
     CSEventRequest,
@@ -30,13 +27,16 @@ async def report_download_progress(
     body: dict,
     user: AuthUser = Depends(get_current_user),
 ):
-    pct  = body.get("pct", 0)
-    mb   = body.get("mb", 0)
-    done = body.get("done", False)
-    if done:
-        log.info("[valve.zip] %-20s  DONE", user.name)
-    else:
-        log.info("[valve.zip] %-20s  %3d%%  (%s MB)", user.name, pct, mb)
+    download_progress[user.name] = {
+        "pct":  body.get("pct", 0),
+        "mb":   body.get("mb", 0),
+        "done": body.get("done", False),
+    }
+
+
+@router.get("/download/progress")
+async def get_download_progress(user: AuthUser = Depends(get_current_user)):
+    return download_progress.get(user.name, {"pct": 0, "mb": 0, "done": False})
 
 
 VALID_EVENTS = {
