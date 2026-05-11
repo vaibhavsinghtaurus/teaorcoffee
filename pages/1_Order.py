@@ -244,7 +244,8 @@ with st.container(border=True):
 
     btn1, btn2 = st.columns(2)
     with btn1:
-        st.link_button("▶ Play (Streamlit)", "/CS_Game", use_container_width=True, type="primary")
+        if st.button("▶ Play (Streamlit)", use_container_width=True, type="primary"):
+            st.switch_page("pages/3_CS_Game.py")
     with btn2:
         st.markdown(
             "<a href='/app/static/game.html' target='_blank' style='"
