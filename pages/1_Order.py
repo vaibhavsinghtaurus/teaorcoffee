@@ -222,3 +222,34 @@ def live_totals() -> None:
 
 
 live_totals()
+
+# ── CS 1.6 GAME CARD ──────────────────────────────────────────────────────────
+st.markdown("---")
+st.markdown("### 🎮 Play CS 1.6 in Browser")
+
+with st.container(border=True):
+    st.markdown(
+        """
+        <div style='display:flex;align-items:center;gap:16px;padding:8px 0'>
+            <span style='font-size:48px'>🔫</span>
+            <div>
+                <div style='font-size:18px;font-weight:700'>Counter-Strike 1.6</div>
+                <div style='font-size:13px;opacity:0.6'>Play directly in your browser — no install required</div>
+                <div style='font-size:12px;opacity:0.45;margin-top:2px'>⚠️ First load downloads ~412 MB of game assets</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    btn1, btn2 = st.columns(2)
+    with btn1:
+        st.link_button("▶ Play (Streamlit)", "/CS_Game", use_container_width=True, type="primary")
+    with btn2:
+        st.markdown(
+            "<a href='/app/static/game.html' target='_blank' style='"
+            "display:block;text-align:center;padding:8px;border:1px solid #555;"
+            "border-radius:6px;text-decoration:none;color:inherit;font-size:14px'>"
+            "⛶ Fullscreen</a>",
+            unsafe_allow_html=True,
+        )
