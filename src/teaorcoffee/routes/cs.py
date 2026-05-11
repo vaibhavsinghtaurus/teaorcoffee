@@ -1,7 +1,10 @@
+import logging
 import subprocess
 import sys
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+
+log = logging.getLogger("cs.download")
 
 _ROOT      = Path(__file__).resolve().parents[4]
 _VALVE_ZIP = _ROOT / "static" / "assets" / "valve.zip"
@@ -20,6 +23,21 @@ from src.teaorcoffee.models.schema import (
 from src.teaorcoffee.utils.broadcast import broadcast_cs_stats
 
 router = APIRouter(prefix="/cs", tags=["CS Game"])
+
+
+@router.post("/download/progress", status_code=204)
+async def report_download_progress(
+    body: dict,
+    user: AuthUser = Depends(get_current_user),
+):
+    pct  = body.get("pct", 0)
+    mb   = body.get("mb", 0)
+    done = body.get("done", False)
+    if done:
+        log.info("[valve.zip] %-20s  DONE", user.name)
+    else:
+        log.info("[valve.zip] %-20s  %3d%%  (%s MB)", user.name, pct, mb)
+
 
 VALID_EVENTS = {
     "kill", "death", "headshot",
