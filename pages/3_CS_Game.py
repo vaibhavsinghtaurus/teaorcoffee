@@ -41,4 +41,14 @@ st.html("""
 </script>
 """)
 
-st.iframe("/app/static/game.html", height=700)
+st.html("""
+<iframe id="cs-frame"
+    src=""
+    style="width:100%;height:700px;border:none;display:block"
+    allow="autoplay;fullscreen"
+></iframe>
+<script>
+    document.getElementById('cs-frame').src =
+        window.location.origin + '/app/static/game.html';
+</script>
+""")
