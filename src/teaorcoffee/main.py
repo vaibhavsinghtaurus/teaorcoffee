@@ -1,7 +1,5 @@
 import os
-import threading
 from contextlib import asynccontextmanager
-from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -12,31 +10,11 @@ from src.teaorcoffee.core.init_db import initialize_database
 from src.teaorcoffee.routes import health, votes, admin, websocket, chat, auth
 from src.teaorcoffee.routes import cs
 
-_ROOT      = Path(__file__).resolve().parents[3]
-_VALVE_ZIP = _ROOT / "static" / "assets" / "valve.zip"
-_HLDS_DIR  = _ROOT / "hlds"
-
-
-def _run_setup_if_needed():
-    """Run setup_cs_server.py in a background thread if assets are missing."""
-    if _VALVE_ZIP.exists() and _HLDS_DIR.exists():
-        return
-
-    import importlib.util, sys
-    setup_path = _ROOT / "scripts" / "setup_cs_server.py"
-    spec   = importlib.util.spec_from_file_location("setup_cs_server", setup_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    module.main()
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup and shutdown events"""
     db.initialize(settings.mongodb_uri)
     await initialize_database()
-    # Download CS assets + HLDS in background if not already present
-    threading.Thread(target=_run_setup_if_needed, daemon=True).start()
     yield
     db.close()
 
