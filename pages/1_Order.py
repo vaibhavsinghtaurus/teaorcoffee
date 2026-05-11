@@ -242,15 +242,12 @@ with st.container(border=True):
         unsafe_allow_html=True,
     )
 
+    _host   = st.context.headers.get("host", "localhost:8501")
+    _scheme = "https" if "streamlit.app" in _host else "http"
+    _game_url = f"{_scheme}://{_host}/app/static/game.html"
+
     btn1, btn2 = st.columns(2)
     with btn1:
-        if st.button("▶ Play (Streamlit)", use_container_width=True, type="primary"):
-            st.switch_page("pages/3_CS_Game.py")
+        st.link_button("▶ Play CS 1.6", _game_url, use_container_width=True, type="primary")
     with btn2:
-        st.markdown(
-            "<a href='/app/static/game.html' target='_blank' style='"
-            "display:block;text-align:center;padding:8px;border:1px solid #555;"
-            "border-radius:6px;text-decoration:none;color:inherit;font-size:14px'>"
-            "⛶ Fullscreen</a>",
-            unsafe_allow_html=True,
-        )
+        st.link_button("⛶ Open in New Tab", _game_url, use_container_width=True)

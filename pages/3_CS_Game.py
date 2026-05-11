@@ -5,12 +5,10 @@ if not st.session_state.get("token"):
 
 st.set_page_config(page_title="CS 1.6", page_icon="🎮", layout="wide")
 
-st.markdown("### 🎮 Launching Counter-Strike 1.6…")
-st.info("⏳ First load downloads ~412 MB of game assets. Subsequent loads are instant (cached).")
+host   = st.context.headers.get("host", "localhost:8501")
+scheme = "https" if "streamlit.app" in host else "http"
+game_url = f"{scheme}://{host}/app/static/game.html"
 
-# Redirect top-level window to the static game page, escaping Streamlit's iframe
-st.html("""
-<script>
-    window.top.location.href = window.top.location.origin + '/app/static/game.html';
-</script>
-""")
+st.markdown("### 🎮 Counter-Strike 1.6")
+st.info("⚠️ First load downloads ~412 MB of game assets. Subsequent loads are instant (cached).")
+st.link_button("▶ Launch Game (Full Page)", game_url, use_container_width=True, type="primary")
