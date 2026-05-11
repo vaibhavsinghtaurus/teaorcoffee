@@ -229,13 +229,7 @@ const WS  = API.replace(/^http/, 'ws');
 function setProgress(pct, label, mb) {
     document.getElementById('progress-bar').style.width = pct + '%';
     document.getElementById('progress-label').textContent = label;
-    if (token) {
-        fetch(`${API}/cs/download/progress`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ pct, mb: mb || 0, done: pct >= 100 }),
-        }).catch(() => {});
-    }
+    localStorage.setItem('cs_progress', JSON.stringify({ pct, mb: mb || 0, done: pct >= 100 }));
 }
 
 function setLoadMsg(title, msg) {
