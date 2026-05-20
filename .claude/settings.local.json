@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(poetry install:*)"
+      "Bash(poetry install:*)",
+      "Bash(python -c \"import sys; sys.path.insert\\(0, 'C:/Projects/TeaOrCoffee/backend/teaorcoffee'\\); import streamlit_utils; print\\(streamlit_utils.__file__\\)\")",
+      "Bash(xargs grep -l \"get_stats_daily\")"
     ]
   }
 }
