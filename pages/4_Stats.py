@@ -8,7 +8,7 @@ from datetime import date, timedelta
 import pandas as pd
 import streamlit as st
 
-from streamlit_utils.api import get_stats_daily, get_stats_users_day
+from streamlit_utils.api import get_stat_user_names, get_stats_daily, get_stats_user_range, get_stats_users_day
 from streamlit_utils.styles import get_css
 
 _MIN_DATE = date(2026, 1, 1)
@@ -200,3 +200,108 @@ if "_breakdown_data" in st.session_state:
         with bd_tab2:
             chart_df = bd_df.set_index("Name")[["Tea", "Coffee"]]
             st.bar_chart(chart_df, color=["#4CAF50", "#FF9800"])
+
+st.markdown("---")
+
+# ── Per-user stats ────────────────────────────────────────────────────────────
+st.markdown("### User Stats")
+
+names_code, names_resp = get_stat_user_names()
+user_names = names_resp.get("names", []) if names_code == 200 else []
+
+if not user_names:
+    st.info("No users available.")
+else:
+    selected_user = st.selectbox("Select a user", user_names, key="user_stats_select")
+
+    st.markdown("#### Date Range")
+
+    u_preset1, u_preset2, u_preset3, u_preset4, u_preset5 = st.columns(5)
+
+    if "user_stats_start" not in st.session_state:
+        st.session_state.user_stats_start = today - timedelta(days=6)
+    if "user_stats_end" not in st.session_state:
+        st.session_state.user_stats_end = today
+
+    with u_preset1:
+        if st.button("This Week", use_container_width=True, key="u_this_week"):
+            st.session_state.user_stats_start = today - timedelta(days=today.weekday())
+            st.session_state.user_stats_end = today
+            st.rerun()
+    with u_preset2:
+        if st.button("Last 7 Days", use_container_width=True, key="u_last7"):
+            st.session_state.user_stats_start = today - timedelta(days=6)
+            st.session_state.user_stats_end = today
+            st.rerun()
+    with u_preset3:
+        if st.button("This Month", use_container_width=True, key="u_this_month"):
+            st.session_state.user_stats_start = today.replace(day=1)
+            st.session_state.user_stats_end = today
+            st.rerun()
+    with u_preset4:
+        if st.button("Last Month", use_container_width=True, key="u_last_month"):
+            first_of_month = today.replace(day=1)
+            last_month_end = first_of_month - timedelta(days=1)
+            st.session_state.user_stats_start = last_month_end.replace(day=1)
+            st.session_state.user_stats_end = last_month_end
+            st.rerun()
+    with u_preset5:
+        if st.button("This Year", use_container_width=True, key="u_this_year"):
+            st.session_state.user_stats_start = today.replace(month=1, day=1)
+            st.session_state.user_stats_end = today
+            st.rerun()
+
+    u_col1, u_col2 = st.columns(2)
+    with u_col1:
+        user_start = st.date_input(
+            "From",
+            value=st.session_state.user_stats_start,
+            min_value=_MIN_DATE,
+            max_value=today,
+            key="user_range_start",
+        )
+    with u_col2:
+        user_end = st.date_input(
+            "To",
+            value=st.session_state.user_stats_end,
+            min_value=_MIN_DATE,
+            max_value=today,
+            key="user_range_end",
+        )
+
+    if user_start > user_end:
+        st.error("'From' date must be on or before 'To' date.")
+    else:
+        st.session_state.user_stats_start = user_start
+        st.session_state.user_stats_end = user_end
+
+        u_code, u_resp = get_stats_user_range(
+            selected_user, user_start.isoformat(), user_end.isoformat()
+        )
+
+        if u_code != 200:
+            st.error(u_resp.get("detail", "Failed to load user stats."))
+        else:
+            u_days = u_resp.get("days", [])
+            u_total_tea = u_resp.get("total_tea", 0)
+            u_total_coffee = u_resp.get("total_coffee", 0)
+            u_order_days = u_resp.get("order_days", 0)
+
+            um1, um2, um3 = st.columns(3)
+            um1.metric("🍵 Tea", u_total_tea)
+            um2.metric("☕ Coffee", u_total_coffee)
+            um3.metric("📅 Days Ordered", u_order_days)
+
+            if not u_days:
+                st.info(f"No orders for {selected_user} in this date range.")
+            else:
+                u_df = pd.DataFrame(u_days).set_index("date")
+                u_df.index.name = "Date"
+                u_df.rename(columns={"tea": "Tea", "coffee": "Coffee"}, inplace=True)
+                u_df = u_df.sort_index()
+
+                u_tab1, u_tab2 = st.tabs(["Bar Chart", "Line Chart"])
+                with u_tab1:
+                    st.bar_chart(u_df, color=["#4CAF50", "#FF9800"])
+                with u_tab2:
+                    st.line_chart(u_df, color=["#4CAF50", "#FF9800"])

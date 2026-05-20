@@ -72,6 +72,16 @@ def get_stats_users_day(token: str, day: str) -> tuple[int, dict]:
     return r.status_code, r.json()
 
 
+def get_stat_user_names() -> tuple[int, dict]:
+    r = httpx.get(f"{_base()}/stats/user-names", timeout=10)
+    return r.status_code, r.json()
+
+
+def get_stats_user_range(name: str, start: str, end: str) -> tuple[int, dict]:
+    r = httpx.get(f"{_base()}/stats/user", params={"name": name, "start": start, "end": end}, timeout=10)
+    return r.status_code, r.json()
+
+
 # ── Admin ─────────────────────────────────────────────────────────────────────
 
 def admin_reset(password: str) -> tuple[int, dict]:
