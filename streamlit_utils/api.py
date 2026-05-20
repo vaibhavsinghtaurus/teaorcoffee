@@ -139,3 +139,23 @@ def admin_set_nickname(name: str, nickname: str | None, password: str) -> tuple[
         timeout=10,
     )
     return r.status_code, r.json()
+
+
+# ── Stats ─────────────────────────────────────────────────────────────────────
+
+def get_stats_daily(password: str, start: str, end: str) -> tuple[int, dict]:
+    r = httpx.get(
+        f"{_base()}/stats/daily",
+        params={"password": password, "start": start, "end": end},
+        timeout=10,
+    )
+    return r.status_code, r.json()
+
+
+def get_stats_users_day(password: str, date_str: str) -> tuple[int, dict]:
+    r = httpx.get(
+        f"{_base()}/stats/users/day",
+        params={"password": password, "date": date_str},
+        timeout=10,
+    )
+    return r.status_code, r.json()

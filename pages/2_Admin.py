@@ -8,6 +8,8 @@ from streamlit_utils.api import (
     admin_add_name,
     admin_get_allowed_names,
     admin_pending_password,
+    get_stats_daily,
+    get_stats_users_day,
     admin_place_order,
     admin_remove_all_logins,
     admin_remove_name,
@@ -44,8 +46,13 @@ with bar_mid:
         st.session_state.theme = "dark" if is_dark else "light"
         st.rerun()
 with bar_r:
-    if st.button("← Back to Order", use_container_width=True):
-        st.switch_page("pages/1_Order.py")
+    nav_col1, nav_col2 = st.columns(2)
+    with nav_col1:
+        if st.button("📊 Stats", use_container_width=True):
+            st.switch_page("pages/4_Stats.py")
+    with nav_col2:
+        if st.button("← Orders", use_container_width=True):
+            st.switch_page("pages/1_Order.py")
 
 st.markdown("<div style='margin:8px 0'></div>", unsafe_allow_html=True)
 
@@ -68,7 +75,7 @@ if not admin_pw:
     st.stop()
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
-tab_orders, tab_users, tab_names = st.tabs(["📋 Orders", "👥 Users", "📝 Allowed Names"])
+tab_orders, tab_users, tab_names, tab_stats = st.tabs(["📋 Orders", "👥 Users", "📝 Allowed Names", "📊 Stats"])
 
 
 # ═══════════════════════ ORDERS TAB ══════════════════════════════════════════
@@ -312,3 +319,75 @@ with tab_names:
                     st.warning(r.get("message", "Already exists."))
                 else:
                     st.error(r.get("message", "Error"))
+
+
+# ═══════════════════════ STATS TAB ═══════════════════════════════════════════
+with tab_stats:
+    import pandas as pd
+    from datetime import date as _date, timedelta
+
+    _MIN_DATE = _date(2026, 1, 1)
+    _today = _date.today()
+
+    st.markdown("#### Order Stats")
+    st.caption("Quick stats view — open the full Stats page for charts and detailed breakdowns.")
+
+    if st.button("Open Full Stats Page →", key="open_stats_page", type="primary"):
+        st.switch_page("pages/4_Stats.py")
+
+    st.markdown("---")
+    st.markdown("##### Daily Totals — Quick Range")
+
+    q_col1, q_col2, q_col3 = st.columns(3)
+    with q_col1:
+        qs_start = st.date_input("From", value=_today - timedelta(days=6),
+                                 min_value=_MIN_DATE, max_value=_today, key="qs_start")
+    with q_col2:
+        qs_end = st.date_input("To", value=_today,
+                               min_value=_MIN_DATE, max_value=_today, key="qs_end")
+    with q_col3:
+        st.markdown("<div style='padding-top:28px'></div>", unsafe_allow_html=True)
+        qs_load = st.button("Load", key="qs_load", use_container_width=True)
+
+    if qs_load and qs_start <= qs_end:
+        qs, qr = get_stats_daily(admin_pw, qs_start.isoformat(), qs_end.isoformat())
+        if qs == 200:
+            days = qr.get("days", [])
+            if days:
+                df = pd.DataFrame(days).set_index("date")
+                df.rename(columns={"tea": "Tea", "coffee": "Coffee"}, inplace=True)
+                total_t = df["Tea"].sum()
+                total_c = df["Coffee"].sum()
+                mc1, mc2 = st.columns(2)
+                mc1.metric("🍵 Tea", int(total_t))
+                mc2.metric("☕ Coffee", int(total_c))
+                st.bar_chart(df.sort_index(), color=["#4CAF50", "#FF9800"])
+            else:
+                st.info("No orders in this range.")
+        else:
+            st.error(qr.get("detail", "Error loading stats."))
+
+    st.markdown("---")
+    st.markdown("##### Who Ordered on a Specific Day")
+
+    bd2_col1, bd2_col2 = st.columns([2, 1])
+    with bd2_col1:
+        qs_day = st.date_input("Day", value=_today,
+                               min_value=_MIN_DATE, max_value=_today, key="qs_day")
+    with bd2_col2:
+        st.markdown("<div style='padding-top:28px'></div>", unsafe_allow_html=True)
+        qs_day_load = st.button("Load Day", key="qs_day_load", use_container_width=True)
+
+    if qs_day_load:
+        ds, dr = get_stats_users_day(admin_pw, qs_day.isoformat())
+        if ds == 200:
+            orders = dr.get("orders", [])
+            st.markdown(f"**{dr['date']}** — 🍵 {dr['total_tea']} &nbsp;|&nbsp; ☕ {dr['total_coffee']}")
+            if orders:
+                odf = pd.DataFrame(orders)
+                odf.rename(columns={"name": "Name", "tea": "Tea", "coffee": "Coffee"}, inplace=True)
+                st.dataframe(odf.sort_values("Name"), use_container_width=True, hide_index=True)
+            else:
+                st.info("No orders on this day.")
+        else:
+            st.error(dr.get("detail", "Error loading day breakdown."))
