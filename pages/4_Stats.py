@@ -211,11 +211,20 @@ _is_admin = _logged_username == "Vaibhav"
 
 if _is_admin:
     names_code, names_resp = get_stat_user_names()
-    user_names = names_resp.get("names", []) if names_code == 200 else []
-    if not user_names:
+    if names_code != 200:
+        st.warning(names_resp.get("detail", "Could not load user list — showing your own stats."))
+        user_names = []
+    else:
+        user_names = names_resp.get("names", [])
+
+    if user_names:
+        selected_user = st.selectbox("Select a user", user_names, key="user_stats_select")
+    elif _logged_username:
+        selected_user = _logged_username
+        st.markdown(f"Showing stats for **{selected_user}**")
+    else:
         st.info("No users available.")
         st.stop()
-    selected_user = st.selectbox("Select a user", user_names, key="user_stats_select")
 elif _logged_username:
     selected_user = _logged_username
     st.markdown(f"Showing stats for **{selected_user}**")
