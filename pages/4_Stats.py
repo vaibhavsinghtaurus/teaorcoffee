@@ -35,25 +35,10 @@ with bar_mid:
         st.session_state.theme = "dark" if is_dark else "light"
         st.rerun()
 with bar_r:
-    if st.button("← Admin", use_container_width=True):
-        st.switch_page("pages/2_Admin.py")
+    if st.button("← Orders", use_container_width=True):
+        st.switch_page("pages/1_Order.py")
 
 st.markdown("<div style='margin:8px 0'></div>", unsafe_allow_html=True)
-
-# ── Password gate ─────────────────────────────────────────────────────────────
-with st.container(border=True):
-    st.markdown("<h3 style='color:white;margin:0 0 8px'>Admin Password</h3>", unsafe_allow_html=True)
-    admin_pw = st.text_input(
-        "Password",
-        type="password",
-        placeholder="Enter admin password…",
-        label_visibility="collapsed",
-        key="stats_pw",
-    )
-
-if not admin_pw:
-    st.info("Enter the admin password above to view stats.")
-    st.stop()
 
 # ── Date range selection ──────────────────────────────────────────────────────
 today = date.today()
@@ -117,7 +102,7 @@ st.session_state.stats_start = range_start
 st.session_state.stats_end = range_end
 
 # ── Fetch daily totals ────────────────────────────────────────────────────────
-status_code, resp = get_stats_daily(admin_pw, range_start.isoformat(), range_end.isoformat())
+status_code, resp = get_stats_daily("", range_start.isoformat(), range_end.isoformat())
 
 if status_code == 401:
     st.error("Wrong password.")
@@ -182,7 +167,7 @@ if load_btn:
     st.session_state.pop("_breakdown_data", None)
 
 if "_breakdown_day" in st.session_state and "_breakdown_data" not in st.session_state:
-    s2, r2 = get_stats_users_day(admin_pw, st.session_state["_breakdown_day"])
+    s2, r2 = get_stats_users_day("", st.session_state["_breakdown_day"])
     if s2 == 200:
         st.session_state["_breakdown_data"] = r2
     else:

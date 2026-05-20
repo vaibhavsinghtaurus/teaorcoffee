@@ -37,7 +37,7 @@ token: str = st.session_state.token
 username: str = st.session_state.username
 
 # ── Top bar ───────────────────────────────────────────────────────────────────
-bar_left, bar_mid, bar_right = st.columns([4, 1, 1])
+bar_left, bar_mid, bar_r1, bar_r2 = st.columns([4, 1, 1, 1])
 with bar_left:
     st.markdown(f"<h3 style='margin:0'>Good day, <b>{username}</b> 👋</h3>", unsafe_allow_html=True)
 with bar_mid:
@@ -45,7 +45,10 @@ with bar_mid:
     if (is_dark and st.session_state.theme != "dark") or (not is_dark and st.session_state.theme != "light"):
         st.session_state.theme = "dark" if is_dark else "light"
         st.rerun()
-with bar_right:
+with bar_r1:
+    if st.button("📊 Stats", use_container_width=True):
+        st.switch_page("pages/4_Stats.py")
+with bar_r2:
     if username == "Vaibhav" and st.button("Admin →", use_container_width=True):
         st.switch_page("pages/2_Admin.py")
     if st.button("Logout", use_container_width=True):
