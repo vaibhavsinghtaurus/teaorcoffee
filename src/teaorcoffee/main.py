@@ -1,8 +1,6 @@
-import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 from src.teaorcoffee.core.database import db
 from src.teaorcoffee.core.config import settings
@@ -41,7 +39,3 @@ app.include_router(admin.router)
 app.include_router(websocket.router)
 app.include_router(chat.router)
 app.include_router(stats.router)
-
-_static_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "static")
-os.makedirs(os.path.join(_static_dir, "assets"), exist_ok=True)
-app.mount("/game", StaticFiles(directory=_static_dir, html=True), name="static")
