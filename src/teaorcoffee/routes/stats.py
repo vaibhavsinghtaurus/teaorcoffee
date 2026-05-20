@@ -1,7 +1,6 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException
 
 from src.teaorcoffee.core.database import db
-from src.teaorcoffee.core.config import settings
 from src.teaorcoffee.models.schema import (
     DailyTotals,
     StatsRangeResponse,
@@ -14,16 +13,9 @@ router = APIRouter(tags=["Stats"])
 _MIN_DATE = "2026-01-01"
 
 
-def _check_password(password: str):
-    if password != settings.admin_password:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid admin password")
-
-
 @router.get("/stats/daily", response_model=StatsRangeResponse)
-async def get_daily_stats(password: str, start: str, end: str):
+async def get_daily_stats(start: str, end: str):
     """Daily tea/coffee totals for a date range (min start: 2026-01-01)"""
-    _check_password(password)
-
     if start < _MIN_DATE:
         start = _MIN_DATE
     if end < start:
@@ -34,10 +26,8 @@ async def get_daily_stats(password: str, start: str, end: str):
 
 
 @router.get("/stats/users/day", response_model=UserOrdersForDateResponse)
-async def get_user_stats_for_day(password: str, date: str):
+async def get_user_stats_for_day(date: str):
     """Per-user order breakdown for a specific date (min: 2026-01-01)"""
-    _check_password(password)
-
     if date < _MIN_DATE:
         raise HTTPException(status_code=400, detail=f"Date cannot be before {_MIN_DATE}")
 
