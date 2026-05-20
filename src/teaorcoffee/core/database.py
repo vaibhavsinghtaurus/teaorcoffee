@@ -234,6 +234,29 @@ class MongoDatabase:
             result.append(doc)
         return result
 
+    async def get_all_user_names(self) -> list[str]:
+        cursor = self.users.find({"is_disabled": {"$ne": 1}}, {"name": 1})
+        return sorted([doc["name"] async for doc in cursor])
+
+    async def get_user_stats_range(self, name: str, start_date: str, end_date: str) -> list[dict]:
+        pipeline = [
+            {"$match": {"date": {"$gte": start_date, "$lte": end_date}}},
+            {"$lookup": {
+                "from": "users",
+                "localField": "user_id",
+                "foreignField": "_id",
+                "as": "user",
+            }},
+            {"$unwind": "$user"},
+            {"$match": {"user.name": name}},
+            {"$project": {"_id": 0, "date": 1, "tea": 1, "coffee": 1}},
+            {"$sort": {"date": 1}},
+        ]
+        result = []
+        async for doc in self.votes.aggregate(pipeline):
+            result.append(doc)
+        return result
+
     async def get_user_orders_for_date(self, date_str: str) -> list[dict]:
         pipeline = [
             {"$match": {"date": date_str}},

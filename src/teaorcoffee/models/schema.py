@@ -188,3 +188,23 @@ class UserOrdersForDateResponse(BaseModel):
     orders: list[UserOrderDetail]
     total_tea: int
     total_coffee: int
+
+
+class UserStatsDayEntry(BaseModel):
+    date: str
+    tea: int
+    coffee: int
+
+
+class UserStatsResponse(BaseModel):
+    name: str
+    start: str
+    end: str
+    days: list[UserStatsDayEntry]
+    total_tea: int
+    total_coffee: int
+    order_days: int
+
+
+class UserNamesResponse(BaseModel):
+    names: list[str]
