@@ -25,8 +25,17 @@ from src.teaorcoffee.models.schema import (
     PlaceOrderForUserResponse,
     SetNicknameRequest,
     SetNicknameResponse,
+    DailyTotals,
+    StatsRangeResponse,
+    UserNamesResponse,
+    UserOrderDetail,
+    UserOrdersForDateResponse,
+    UserStatsDayEntry,
+    UserStatsResponse,
 )
 from src.teaorcoffee.utils.broadcast import broadcast_votes
+
+_STATS_MIN_DATE = "2026-01-01"
 
 router = APIRouter(tags=["Admin"])
 
@@ -270,3 +279,67 @@ async def set_user_nickname(request: SetNicknameRequest):
 
     action = f"set to '{nickname}'" if nickname else "cleared"
     return SetNicknameResponse(success=True, name=name, nickname=nickname, message=f"Nickname {action} for '{name}'")
+
+
+# ── Admin Stats ───────────────────────────────────────────────────────────────
+
+def _require_admin(password: str):
+    if password != settings.admin_password:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid admin password")
+
+
+@router.get("/admin/stats/daily", response_model=StatsRangeResponse)
+async def admin_get_daily_stats(password: str, start: str, end: str):
+    """Admin: daily tea/coffee totals for a date range"""
+    _require_admin(password)
+    if start < _STATS_MIN_DATE:
+        start = _STATS_MIN_DATE
+    if end < start:
+        raise HTTPException(status_code=400, detail="end must be >= start")
+    rows = await db.get_daily_totals_range(start, end)
+    return StatsRangeResponse(days=[DailyTotals(**r) for r in rows])
+
+
+@router.get("/admin/stats/users/day", response_model=UserOrdersForDateResponse)
+async def admin_get_user_stats_for_day(password: str, date: str):
+    """Admin: per-user order breakdown for a specific date"""
+    _require_admin(password)
+    if date < _STATS_MIN_DATE:
+        raise HTTPException(status_code=400, detail=f"Date cannot be before {_STATS_MIN_DATE}")
+    rows = await db.get_user_orders_for_date(date)
+    orders = [UserOrderDetail(**r) for r in rows]
+    return UserOrdersForDateResponse(
+        date=date,
+        orders=orders,
+        total_tea=sum(o.tea for o in orders),
+        total_coffee=sum(o.coffee for o in orders),
+    )
+
+
+@router.get("/admin/stats/user-names", response_model=UserNamesResponse)
+async def admin_get_stat_user_names(password: str):
+    """Admin: list of all active user names"""
+    _require_admin(password)
+    names = await db.get_all_user_names()
+    return UserNamesResponse(names=names)
+
+
+@router.get("/admin/stats/user", response_model=UserStatsResponse)
+async def admin_get_user_stats_range(password: str, name: str, start: str, end: str):
+    """Admin: daily tea/coffee totals for any user over a date range"""
+    _require_admin(password)
+    if start < _STATS_MIN_DATE:
+        start = _STATS_MIN_DATE
+    if end < start:
+        raise HTTPException(status_code=400, detail="end must be >= start")
+    rows = await db.get_user_stats_range(name, start, end)
+    days = [UserStatsDayEntry(**r) for r in rows]
+    return UserStatsResponse(
+        name=name,
+        start=start,
+        end=end,
+        days=days,
+        total_tea=sum(d.tea for d in days),
+        total_coffee=sum(d.coffee for d in days),
+        order_days=len(days),
+    )
