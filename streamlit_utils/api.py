@@ -60,6 +60,18 @@ def get_orders_breakdown(token: str) -> dict:
     return r.json()
 
 
+# ── Stats ─────────────────────────────────────────────────────────────────────
+
+def get_stats_daily(token: str, start: str, end: str) -> tuple[int, dict]:
+    r = httpx.get(f"{_base()}/stats/daily", params={"start": start, "end": end}, timeout=10)
+    return r.status_code, r.json()
+
+
+def get_stats_users_day(token: str, day: str) -> tuple[int, dict]:
+    r = httpx.get(f"{_base()}/stats/users/day", params={"date": day}, timeout=10)
+    return r.status_code, r.json()
+
+
 # ── Admin ─────────────────────────────────────────────────────────────────────
 
 def admin_reset(password: str) -> tuple[int, dict]:
