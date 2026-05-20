@@ -220,6 +220,38 @@ class MongoDatabase:
             result.append(doc)
         return result
 
+    # ---- Stats ----
+
+    async def get_daily_totals_range(self, start_date: str, end_date: str) -> list[dict]:
+        pipeline = [
+            {"$match": {"date": {"$gte": start_date, "$lte": end_date}}},
+            {"$group": {"_id": "$date", "tea": {"$sum": "$tea"}, "coffee": {"$sum": "$coffee"}}},
+            {"$sort": {"_id": 1}},
+            {"$project": {"_id": 0, "date": "$_id", "tea": 1, "coffee": 1}},
+        ]
+        result = []
+        async for doc in self.votes.aggregate(pipeline):
+            result.append(doc)
+        return result
+
+    async def get_user_orders_for_date(self, date_str: str) -> list[dict]:
+        pipeline = [
+            {"$match": {"date": date_str}},
+            {"$lookup": {
+                "from": "users",
+                "localField": "user_id",
+                "foreignField": "_id",
+                "as": "user",
+            }},
+            {"$unwind": "$user"},
+            {"$project": {"_id": 0, "name": "$user.name", "tea": 1, "coffee": 1}},
+            {"$sort": {"name": 1}},
+        ]
+        result = []
+        async for doc in self.votes.aggregate(pipeline):
+            result.append(doc)
+        return result
+
 
 # Global database instance
 db = MongoDatabase()
