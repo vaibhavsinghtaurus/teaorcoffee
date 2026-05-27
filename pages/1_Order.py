@@ -51,6 +51,8 @@ with bar_r1:
 with bar_r2:
     if username == "Vaibhav" and st.button("Admin →", use_container_width=True):
         st.switch_page("pages/2_Admin.py")
+    if username in {"Ranjeet", "Jimish"} and st.button("HR →", use_container_width=True):
+        st.switch_page("pages/3_HR.py")
     if st.button("Logout", use_container_width=True):
         st.session_state._do_logout = True
         st.rerun()
