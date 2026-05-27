@@ -161,3 +161,56 @@ def admin_set_nickname(name: str, nickname: str | None, password: str) -> tuple[
         timeout=10,
     )
     return r.status_code, r.json()
+
+
+# ── HR / Manager ──────────────────────────────────────────────────────────────
+
+def hr_get_orders(password: str) -> tuple[int, dict]:
+    r = httpx.get(f"{_base()}/hr/orders", params={"password": password}, timeout=10)
+    return r.status_code, r.json()
+
+
+def hr_remove_order(name: str, password: str) -> tuple[int, dict]:
+    r = httpx.post(f"{_base()}/hr/remove-order", json={"name": name, "password": password}, timeout=10)
+    return r.status_code, r.json()
+
+
+def hr_place_order(name: str, password: str, tea: int, coffee: int) -> tuple[int, dict]:
+    r = httpx.post(
+        f"{_base()}/hr/place-order",
+        json={"name": name, "password": password, "tea": tea, "coffee": coffee},
+        timeout=10,
+    )
+    return r.status_code, r.json()
+
+
+def hr_get_stats_daily(password: str, start: str, end: str) -> tuple[int, dict]:
+    r = httpx.get(
+        f"{_base()}/hr/stats/daily",
+        params={"password": password, "start": start, "end": end},
+        timeout=10,
+    )
+    return r.status_code, r.json()
+
+
+def hr_get_stats_users_day(password: str, day: str) -> tuple[int, dict]:
+    r = httpx.get(
+        f"{_base()}/hr/stats/users/day",
+        params={"password": password, "date": day},
+        timeout=10,
+    )
+    return r.status_code, r.json()
+
+
+def hr_get_user_names(password: str) -> tuple[int, dict]:
+    r = httpx.get(f"{_base()}/hr/stats/user-names", params={"password": password}, timeout=10)
+    return r.status_code, r.json()
+
+
+def hr_get_stats_user(password: str, name: str, start: str, end: str) -> tuple[int, dict]:
+    r = httpx.get(
+        f"{_base()}/hr/stats/user",
+        params={"password": password, "name": name, "start": start, "end": end},
+        timeout=10,
+    )
+    return r.status_code, r.json()
