@@ -48,6 +48,14 @@ with bar_r:
 
 st.markdown("<div style='margin:8px 0'></div>", unsafe_allow_html=True)
 
+# ── Access control ────────────────────────────────────────────────────────────
+_HR_ALLOWED = {"Ranjeet", "Jimish"}
+_logged_user: str = st.session_state.get("username", "")
+
+if _logged_user not in _HR_ALLOWED:
+    st.error("Access denied. Only authorised HR members can view this page.")
+    st.stop()
+
 # ── Password gate ─────────────────────────────────────────────────────────────
 with st.container(border=True):
     st.markdown(
