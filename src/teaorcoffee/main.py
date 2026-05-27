@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.teaorcoffee.core.database import db
 from src.teaorcoffee.core.config import settings
 from src.teaorcoffee.core.init_db import initialize_database
-from src.teaorcoffee.routes import health, votes, admin, websocket, chat, auth
+from src.teaorcoffee.routes import health, votes, admin, hr, websocket, chat, auth
 from src.teaorcoffee.routes import stats
 
 
@@ -36,6 +36,7 @@ app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(votes.router)
 app.include_router(admin.router)
+app.include_router(hr.router)
 app.include_router(websocket.router)
 app.include_router(chat.router)
 app.include_router(stats.router)

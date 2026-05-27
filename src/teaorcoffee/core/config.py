@@ -27,6 +27,7 @@ class Settings(BaseSettings):
 
     max_users: int = 20
     admin_password: str = Field(validation_alias="ADMIN_PASS")
+    hr_password: str = Field(default="", validation_alias="HR_PASS")
 
     class Config:
         env_file = ".env"
