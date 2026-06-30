@@ -1,120 +1,88 @@
 import os
 import sys
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from datetime import date as _date, timedelta
-
 import pandas as pd
 import streamlit as st
-
 from streamlit_utils.api import (
-    hr_get_orders,
-    hr_get_stats_daily,
-    hr_get_stats_user,
-    hr_get_stats_users_day,
-    hr_get_user_names,
-    hr_place_order,
-    hr_remove_order,
+    hr_get_orders, hr_remove_order, hr_place_order,
+    hr_stats_daily, hr_stats_users_day, hr_user_names, hr_user_stats,
+    get_office_products,
 )
 from streamlit_utils.styles import get_css
+from streamlit_utils.session import require_auth, do_logout
 
-st.set_page_config(
-    page_title="HR Panel — Tea or Coffee",
-    page_icon="👔",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
+st.set_page_config(page_title="HR Panel — Tea or Coffee", page_icon="👔",
+                   layout="wide", initial_sidebar_state="collapsed")
 
 if "theme" not in st.session_state:
     st.session_state.theme = "dark"
-
 st.markdown(get_css(st.session_state.theme), unsafe_allow_html=True)
 
-# ── Top bar ───────────────────────────────────────────────────────────────────
-bar_l, bar_mid, bar_r = st.columns([4, 1, 1])
+sess = require_auth(allowed_roles=["main_admin", "office_admin", "office_hr"])
+token = sess["token"]
+office_name = sess["office_name"] or "Office"
+
+bar_l, bar_m, bar_r = st.columns([5, 1, 2])
 with bar_l:
-    st.markdown("<h2 style='margin:0'>👔 HR / Manager Panel</h2>", unsafe_allow_html=True)
-with bar_mid:
-    is_dark = st.toggle("🌙", value=st.session_state.theme == "dark", key="theme_toggle_hr")
-    if (is_dark and st.session_state.theme != "dark") or (
-        not is_dark and st.session_state.theme != "light"
-    ):
+    st.markdown(f"<div class='topbar-title'>👔 HR Panel <span class='office-tag'>{office_name}</span></div>",
+                unsafe_allow_html=True)
+with bar_m:
+    is_dark = st.toggle("🌙", value=st.session_state.theme == "dark", key="theme_t_hr")
+    if (is_dark and st.session_state.theme != "dark") or (not is_dark and st.session_state.theme != "light"):
         st.session_state.theme = "dark" if is_dark else "light"
         st.rerun()
 with bar_r:
-    if st.button("← Orders", use_container_width=True):
-        st.switch_page("pages/1_Order.py")
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("← Orders", use_container_width=True):
+            st.switch_page("pages/1_Order.py")
+    with c2:
+        if st.button("Logout", use_container_width=True):
+            do_logout()
 
 st.markdown("<div style='margin:8px 0'></div>", unsafe_allow_html=True)
 
-# ── Access control ────────────────────────────────────────────────────────────
-_HR_ALLOWED = {"Ranjeet", "Jimish"}
-_logged_user: str = st.session_state.get("username", "")
+_MIN_DATE = _date(2026, 1, 1)
+_today = _date.today()
 
-if _logged_user not in _HR_ALLOWED:
-    st.error("Access denied. Only authorised HR members can view this page.")
-    st.stop()
-
-# ── Password gate ─────────────────────────────────────────────────────────────
-with st.container(border=True):
-    st.markdown(
-        "<h3 style='color:white;margin:0 0 8px'>HR Password</h3>",
-        unsafe_allow_html=True,
-    )
-    hr_pw = st.text_input(
-        "Password",
-        type="password",
-        placeholder="Enter HR password…",
-        label_visibility="collapsed",
-        key="hr_pw",
-    )
-
-if not hr_pw:
-    st.info("Enter the HR password above to unlock the panel.")
-    st.stop()
-
-# ── Tabs ──────────────────────────────────────────────────────────────────────
 tab_orders, tab_stats = st.tabs(["📋 Orders", "📊 Stats"])
 
-
-# ═══════════════════════ ORDERS TAB ══════════════════════════════════════════
+# ═══ ORDERS ══════════════════════════════════════════════════════════════════
 with tab_orders:
-    st.markdown("#### Today's Orders")
-
-    if st.button("🔄 Refresh", key="hr_refresh_orders"):
+    if st.button("🔄 Refresh", key="hr_refresh"):
         st.rerun()
 
-    status_o, resp_o = hr_get_orders(hr_pw)
-
-    if status_o == 401:
-        st.error("Wrong HR password.")
+    s_o, r_o = hr_get_orders(token)
+    if s_o == 403:
+        st.error("Access denied.")
         st.stop()
-    elif status_o == 503:
-        st.error("HR access is not configured on this server.")
-        st.stop()
-    elif status_o != 200:
-        st.error(resp_o.get("detail", "Could not load orders."))
+    elif s_o != 200:
+        st.error(r_o.get("detail", "Could not load orders."))
     else:
-        m1, m2 = st.columns(2)
-        m1.metric("🍵 Total Tea", resp_o.get("total_tea", 0))
-        m2.metric("☕ Total Coffee", resp_o.get("total_coffee", 0))
+        totals = r_o.get("totals", {})
+        orders = r_o.get("orders", [])
+        order_count = r_o.get("order_count", len(orders))
 
-        orders = resp_o.get("orders", [])
+        if totals:
+            metric_cols = st.columns(len(totals) + 1)
+            for i, (pname, info) in enumerate(totals.items()):
+                emoji = info.get("emoji", "") if isinstance(info, dict) else ""
+                total = info.get("total", info) if isinstance(info, dict) else info
+                metric_cols[i].metric(f"{emoji} {pname}", total)
+            metric_cols[-1].metric("👥 Orders", order_count)
+
         if orders:
             st.markdown("---")
             for order in orders:
-                bev = (
-                    f"🍵 Tea ×{order['tea']}"
-                    if order["tea"] > 0
-                    else f"☕ Coffee ×{order['coffee']}"
-                )
+                bev = f"{order.get('product_emoji','☕')} {order.get('product_name','')} ×{order.get('qty',1)}"
                 c1, c2, c3 = st.columns([3, 3, 2])
                 c1.write(f"**{order['name']}**")
                 c2.write(bev)
                 with c3:
                     if st.button("Remove", key=f"hr_rm_{order['name']}"):
-                        s, r = hr_remove_order(order["name"], hr_pw)
+                        s, r = hr_remove_order(token, order["name"])
                         if s == 200:
                             st.success(f"Removed {order['name']}'s order.")
                             st.rerun()
@@ -124,260 +92,157 @@ with tab_orders:
             st.info("No orders today.")
 
     st.markdown("---")
-
-    # ── Place order on behalf of a user ───────────────────────────────────
     with st.container(border=True):
-        st.markdown(
-            "<h4 style='color:white;margin:0 0 10px'>Place Order for User</h4>",
-            unsafe_allow_html=True,
-        )
-        po_col1, po_col2 = st.columns(2)
-        with po_col1:
-            po_name = st.text_input(
-                "User name",
-                key="hr_po_name",
-                placeholder="User name…",
-                label_visibility="collapsed",
-            )
-        with po_col2:
-            po_bev = st.selectbox(
-                "Beverage",
-                ["🍵 Tea (max 2)", "☕ Coffee (max 1)"],
-                key="hr_po_bev",
-                label_visibility="collapsed",
-            )
-
-        po_qty = st.number_input(
-            "Quantity",
-            min_value=1,
-            max_value=2 if "Tea" in po_bev else 1,
-            value=1,
-            step=1,
-            key="hr_po_qty",
-        )
-
-        if st.button("PLACE ORDER", key="hr_po_btn", use_container_width=True, type="primary"):
-            if not po_name.strip():
-                st.error("Enter a user name.")
-            else:
-                tea = po_qty if "Tea" in po_bev else 0
-                coffee = po_qty if "Coffee" in po_bev else 0
-                s, r = hr_place_order(po_name.strip(), hr_pw, tea, coffee)
-                if s == 200 and r.get("success"):
-                    st.success(r["message"])
-                    st.rerun()
-                elif s == 409:
-                    st.warning(r.get("detail", "User already ordered today."))
-                else:
-                    st.error(r.get("detail", r.get("message", "Error.")))
+        st.markdown("<h4 style='margin:0 0 10px'>Place Order for User</h4>", unsafe_allow_html=True)
+        po_c1, po_c2 = st.columns(2)
+        with po_c1:
+            po_name = st.text_input("User name", key="hr_po_name", placeholder="User name…", label_visibility="collapsed")
+        prods = get_office_products(token)
+        if prods:
+            prod_labels = [f"{p['emoji']} {p['name']} (max {p['max_qty']})" for p in prods]
+            with po_c2:
+                po_prod_label = st.selectbox("Product", prod_labels, key="hr_po_prod", label_visibility="collapsed")
+            po_prod_idx = prod_labels.index(po_prod_label)
+            po_prod = prods[po_prod_idx]
+            po_qty = st.number_input("Qty", min_value=1, max_value=po_prod["max_qty"], value=1, key="hr_po_qty")
+            if st.button("PLACE ORDER", key="hr_po_btn", use_container_width=True, type="primary"):
+                if po_name.strip():
+                    s, r = hr_place_order(token, po_name.strip(), po_prod["id"], po_qty)
+                    if s == 200 and r.get("success"):
+                        st.success(r["message"])
+                        st.rerun()
+                    elif s == 409:
+                        st.warning(r.get("detail", "Already ordered."))
+                    else:
+                        st.error(r.get("detail", r.get("message", "Error.")))
 
 
-# ═══════════════════════ STATS TAB ═══════════════════════════════════════════
+# ═══ STATS ═══════════════════════════════════════════════════════════════════
 with tab_stats:
-    _MIN_DATE = _date(2026, 1, 1)
-    _today = _date.today()
-
-    st.markdown("#### Daily Totals")
-
-    preset_col1, preset_col2, preset_col3, preset_col4 = st.columns(4)
-
-    if "hr_stats_start" not in st.session_state:
-        st.session_state.hr_stats_start = _today - timedelta(days=6)
-    if "hr_stats_end" not in st.session_state:
-        st.session_state.hr_stats_end = _today
-
-    with preset_col1:
-        if st.button("This Week", use_container_width=True, key="hr_this_week"):
-            st.session_state.hr_stats_start = _today - timedelta(days=_today.weekday())
-            st.session_state.hr_stats_end = _today
+    preset_c1, preset_c2, preset_c3, preset_c4 = st.columns(4)
+    if "hr_s_start" not in st.session_state:
+        st.session_state.hr_s_start = _today - timedelta(days=6)
+    if "hr_s_end" not in st.session_state:
+        st.session_state.hr_s_end = _today
+    with preset_c1:
+        if st.button("This Week", use_container_width=True, key="hr_week"):
+            st.session_state.hr_s_start = _today - timedelta(days=_today.weekday())
+            st.session_state.hr_s_end = _today
             st.rerun()
-    with preset_col2:
+    with preset_c2:
         if st.button("Last 7 Days", use_container_width=True, key="hr_last7"):
-            st.session_state.hr_stats_start = _today - timedelta(days=6)
-            st.session_state.hr_stats_end = _today
+            st.session_state.hr_s_start = _today - timedelta(days=6)
+            st.session_state.hr_s_end = _today
             st.rerun()
-    with preset_col3:
-        if st.button("This Month", use_container_width=True, key="hr_this_month"):
-            st.session_state.hr_stats_start = _today.replace(day=1)
-            st.session_state.hr_stats_end = _today
+    with preset_c3:
+        if st.button("This Month", use_container_width=True, key="hr_month"):
+            st.session_state.hr_s_start = _today.replace(day=1)
+            st.session_state.hr_s_end = _today
             st.rerun()
-    with preset_col4:
-        if st.button("Last Month", use_container_width=True, key="hr_last_month"):
+    with preset_c4:
+        if st.button("Last Month", use_container_width=True, key="hr_lastmonth"):
             first = _today.replace(day=1)
-            last_end = first - timedelta(days=1)
-            st.session_state.hr_stats_start = last_end.replace(day=1)
-            st.session_state.hr_stats_end = last_end
+            end = first - timedelta(days=1)
+            st.session_state.hr_s_start = end.replace(day=1)
+            st.session_state.hr_s_end = end
             st.rerun()
 
     dc1, dc2 = st.columns(2)
     with dc1:
-        range_start = st.date_input(
-            "From",
-            value=st.session_state.hr_stats_start,
-            min_value=_MIN_DATE,
-            max_value=_today,
-            key="hr_range_start",
-        )
+        range_start = st.date_input("From", value=st.session_state.hr_s_start,
+                                    min_value=_MIN_DATE, max_value=_today, key="hr_rng_s")
     with dc2:
-        range_end = st.date_input(
-            "To",
-            value=st.session_state.hr_stats_end,
-            min_value=_MIN_DATE,
-            max_value=_today,
-            key="hr_range_end",
-        )
+        range_end = st.date_input("To", value=st.session_state.hr_s_end,
+                                  min_value=_MIN_DATE, max_value=_today, key="hr_rng_e")
 
     if range_start > range_end:
-        st.error("'From' date must be on or before 'To' date.")
+        st.error("'From' must be on or before 'To'.")
     else:
-        st.session_state.hr_stats_start = range_start
-        st.session_state.hr_stats_end = range_end
-
-        ds, dr = hr_get_stats_daily(hr_pw, range_start.isoformat(), range_end.isoformat())
-        if ds == 401:
-            st.error("Wrong HR password.")
-        elif ds != 200:
-            st.error(dr.get("detail", "Failed to load stats."))
+        st.session_state.hr_s_start = range_start
+        st.session_state.hr_s_end = range_end
+        ds, dr = hr_stats_daily(token, range_start.isoformat(), range_end.isoformat())
+        if ds != 200:
+            st.error(dr.get("detail", "Failed."))
         else:
             days = dr.get("days", [])
-            total_tea = sum(d["tea"] for d in days)
-            total_coffee = sum(d["coffee"] for d in days)
-
+            total_t = sum(d["tea"] for d in days)
+            total_c = sum(d["coffee"] for d in days)
             sm1, sm2, sm3 = st.columns(3)
-            sm1.metric("🍵 Total Tea", total_tea)
-            sm2.metric("☕ Total Coffee", total_coffee)
+            sm1.metric("🍵 Tea", total_t)
+            sm2.metric("☕ Coffee", total_c)
             sm3.metric("📅 Active Days", len(days))
-
             if days:
                 df = pd.DataFrame(days).set_index("date")
-                df.index.name = "Date"
-                df.rename(columns={"tea": "Tea", "coffee": "Coffee"}, inplace=True)
-                st.bar_chart(df.sort_index(), color=["#4CAF50", "#FF9800"])
+                df = df[["tea", "coffee"]].rename(columns={"tea": "Tea", "coffee": "Coffee"})
+                st.bar_chart(df.sort_index(), color=["#3B82F6", "#F97316"])
 
     st.markdown("---")
-
-    # ── Who ordered on a specific day ─────────────────────────────────────
     st.markdown("#### Who Ordered on a Specific Day")
-
-    bd_col1, bd_col2 = st.columns([2, 1])
-    with bd_col1:
-        selected_day = st.date_input(
-            "Select a day",
-            value=_today,
-            min_value=_MIN_DATE,
-            max_value=_today,
-            key="hr_breakdown_day",
-        )
-    with bd_col2:
+    bd_c1, bd_c2 = st.columns([2, 1])
+    with bd_c1:
+        sel_day = st.date_input("Day", value=_today, min_value=_MIN_DATE, max_value=_today, key="hr_bd_day")
+    with bd_c2:
         st.markdown("<div style='padding-top:28px'></div>", unsafe_allow_html=True)
         load_day = st.button("Load Breakdown", use_container_width=True, type="primary", key="hr_load_day")
-
     if load_day:
-        ds2, dr2 = hr_get_stats_users_day(hr_pw, selected_day.isoformat())
+        ds2, dr2 = hr_stats_users_day(token, sel_day.isoformat())
         if ds2 == 200:
-            orders2 = dr2.get("orders", [])
-            st.markdown(
-                f"**{dr2['date']}** — 🍵 {dr2['total_tea']} &nbsp;|&nbsp; ☕ {dr2['total_coffee']}"
-            )
-            if orders2:
-                odf = pd.DataFrame(orders2)
-                odf.rename(columns={"name": "Name", "tea": "Tea", "coffee": "Coffee"}, inplace=True)
-                st.dataframe(odf.sort_values("Name"), use_container_width=True, hide_index=True)
-            else:
-                st.info("No orders on this day.")
+            ords2 = dr2.get("orders", [])
+            st.markdown(f"**{dr2['date']}** — 🍵 {dr2['total_tea']} | ☕ {dr2['total_coffee']}")
+            if ords2:
+                odf = pd.DataFrame(ords2)
+                odf.rename(columns={"name": "Name", "product_name": "Product", "qty": "Qty"}, inplace=True)
+                st.dataframe(odf[["Name", "Product", "Qty"]].sort_values("Name"),
+                             use_container_width=True, hide_index=True)
         else:
-            st.error(dr2.get("detail", "Failed to load breakdown."))
+            st.error(dr2.get("detail", "Failed."))
 
     st.markdown("---")
-
-    # ── Per-user stats ────────────────────────────────────────────────────
     st.markdown("#### User Stats")
-
-    names_s, names_r = hr_get_user_names(hr_pw)
-    if names_s == 200:
-        user_names = names_r.get("names", [])
+    ns, nr = hr_user_names(token)
+    if ns == 200:
+        user_names = nr.get("names", [])
         if user_names:
-            selected_user = st.selectbox("Select a user", user_names, key="hr_user_select")
+            sel_user = st.selectbox("Select user", user_names, key="hr_user_sel")
         else:
             st.info("No users found.")
             st.stop()
     else:
-        st.warning(names_r.get("detail", "Could not load user list."))
+        st.warning("Could not load user names.")
         st.stop()
 
-    if "hr_user_start" not in st.session_state:
-        st.session_state.hr_user_start = _today - timedelta(days=6)
-    if "hr_user_end" not in st.session_state:
-        st.session_state.hr_user_end = _today
+    if "hr_u_start" not in st.session_state:
+        st.session_state.hr_u_start = _today - timedelta(days=6)
+    if "hr_u_end" not in st.session_state:
+        st.session_state.hr_u_end = _today
 
-    u_p1, u_p2, u_p3, u_p4 = st.columns(4)
-    with u_p1:
-        if st.button("This Week", use_container_width=True, key="hr_u_week"):
-            st.session_state.hr_user_start = _today - timedelta(days=_today.weekday())
-            st.session_state.hr_user_end = _today
-            st.rerun()
-    with u_p2:
-        if st.button("Last 7 Days", use_container_width=True, key="hr_u_last7"):
-            st.session_state.hr_user_start = _today - timedelta(days=6)
-            st.session_state.hr_user_end = _today
-            st.rerun()
-    with u_p3:
-        if st.button("This Month", use_container_width=True, key="hr_u_month"):
-            st.session_state.hr_user_start = _today.replace(day=1)
-            st.session_state.hr_user_end = _today
-            st.rerun()
-    with u_p4:
-        if st.button("Last Month", use_container_width=True, key="hr_u_last_month"):
-            first = _today.replace(day=1)
-            last_end = first - timedelta(days=1)
-            st.session_state.hr_user_start = last_end.replace(day=1)
-            st.session_state.hr_user_end = last_end
-            st.rerun()
+    uc1, uc2 = st.columns(2)
+    with uc1:
+        u_start = st.date_input("From", value=st.session_state.hr_u_start,
+                                min_value=_MIN_DATE, max_value=_today, key="hr_u_s")
+    with uc2:
+        u_end = st.date_input("To", value=st.session_state.hr_u_end,
+                              min_value=_MIN_DATE, max_value=_today, key="hr_u_e")
 
-    u_col1, u_col2 = st.columns(2)
-    with u_col1:
-        user_start = st.date_input(
-            "From",
-            value=st.session_state.hr_user_start,
-            min_value=_MIN_DATE,
-            max_value=_today,
-            key="hr_user_range_start",
-        )
-    with u_col2:
-        user_end = st.date_input(
-            "To",
-            value=st.session_state.hr_user_end,
-            min_value=_MIN_DATE,
-            max_value=_today,
-            key="hr_user_range_end",
-        )
-
-    if user_start > user_end:
-        st.error("'From' date must be on or before 'To' date.")
+    if u_start > u_end:
+        st.error("'From' must be on or before 'To'.")
     else:
-        st.session_state.hr_user_start = user_start
-        st.session_state.hr_user_end = user_end
-
-        us, ur = hr_get_stats_user(
-            hr_pw, selected_user, user_start.isoformat(), user_end.isoformat()
-        )
+        st.session_state.hr_u_start = u_start
+        st.session_state.hr_u_end = u_end
+        us, ur = hr_user_stats(token, sel_user, u_start.isoformat(), u_end.isoformat())
         if us != 200:
-            st.error(ur.get("detail", "Failed to load user stats."))
+            st.error(ur.get("detail", "Failed."))
         else:
             u_days = ur.get("days", [])
             um1, um2, um3 = st.columns(3)
             um1.metric("🍵 Tea", ur.get("total_tea", 0))
             um2.metric("☕ Coffee", ur.get("total_coffee", 0))
-            um3.metric("📅 Days Ordered", ur.get("order_days", 0))
-
+            um3.metric("📅 Days", ur.get("order_days", 0))
             if u_days:
-                u_df = pd.DataFrame(u_days).set_index("date")
-                u_df.index.name = "Date"
-                u_df.rename(columns={"tea": "Tea", "coffee": "Coffee"}, inplace=True)
-                u_tab1, u_tab2 = st.tabs(["Bar Chart", "Line Chart"])
-                with u_tab1:
-                    st.bar_chart(u_df.sort_index(), color=["#4CAF50", "#FF9800"])
-                with u_tab2:
-                    st.line_chart(u_df.sort_index(), color=["#4CAF50", "#FF9800"])
-            else:
-                st.info(f"No orders for {selected_user} in this date range.")
+                udf = pd.DataFrame(u_days).set_index("date")
+                udf = udf[["tea", "coffee"]].rename(columns={"tea": "Tea", "coffee": "Coffee"})
+                u_t1, u_t2 = st.tabs(["Bar", "Line"])
+                with u_t1:
+                    st.bar_chart(udf.sort_index(), color=["#3B82F6", "#F97316"])
+                with u_t2:
+                    st.line_chart(udf.sort_index(), color=["#3B82F6", "#F97316"])

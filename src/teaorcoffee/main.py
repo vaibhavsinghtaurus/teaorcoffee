@@ -5,22 +5,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.teaorcoffee.core.database import db
 from src.teaorcoffee.core.config import settings
 from src.teaorcoffee.core.init_db import initialize_database
-from src.teaorcoffee.routes import health, votes, admin, hr, websocket, chat, auth
-from src.teaorcoffee.routes import stats
+from src.teaorcoffee.routes import health, votes, admin, hr, websocket, chat, auth, stats
+from src.teaorcoffee.routes import office_admin, distributor, products
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup and shutdown events"""
     db.initialize(settings.mongodb_uri)
     await initialize_database()
     yield
     db.close()
 
+
 app = FastAPI(
     title="Tea & Coffee Orders API",
-    description="Vote once per authenticated user + live chat",
-    version="5.0.0",
+    description="Multi-office beverage ordering with role-based access",
+    version="6.0.0",
     lifespan=lifespan,
 )
 
@@ -35,8 +35,11 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(votes.router)
+app.include_router(stats.router)
 app.include_router(admin.router)
 app.include_router(hr.router)
+app.include_router(office_admin.router)
+app.include_router(distributor.router)
+app.include_router(products.router)
 app.include_router(websocket.router)
 app.include_router(chat.router)
-app.include_router(stats.router)

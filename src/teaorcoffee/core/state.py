@@ -1,10 +1,10 @@
 from typing import Set, List
 from fastapi import WebSocket
 
-# ---- Vote WebSockets ----
-connections: Set[WebSocket] = set()
+# vote ws: maps websocket -> office_id for per-office broadcast
+connections: dict[WebSocket, str] = {}
 
-# ---- Chat ----
+# chat ws
 chat_connections: Set[WebSocket] = set()
 chat_history: List[dict] = []
 CHAT_HISTORY_LIMIT = 50

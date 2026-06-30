@@ -9,25 +9,18 @@ router = APIRouter()
 
 @router.websocket("/ws/votes")
 async def votes_socket(websocket: WebSocket):
-    """WebSocket endpoint for real-time vote updates (requires authentication)"""
     await websocket.accept()
-
     try:
-        # Authenticate the websocket connection
         user = await get_current_user_from_websocket(websocket)
-
-        # Add to connections
-        connections.add(websocket)
-
-        # Send current totals + breakdown
-        await websocket.send_json(await _build_payload())
-
-        # Keep connection alive
+        connections[websocket] = user.office_id or ""
+        await websocket.send_json(await _build_payload(user.office_id))
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
-        connections.discard(websocket)
+        connections.pop(websocket, None)
     except Exception:
-        # Authentication failed or other error
-        connections.discard(websocket)
-        await websocket.close(code=1008)  # Policy violation
+        connections.pop(websocket, None)
+        try:
+            await websocket.close(code=1008)
+        except Exception:
+            pass
