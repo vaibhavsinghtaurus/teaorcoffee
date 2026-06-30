@@ -29,7 +29,7 @@ router = APIRouter(tags=["Admin"])
 
 
 def _require_admin(password: str):
-    if password != settings.admin_password:
+    if password.strip() != settings.admin_password.strip():
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid admin password")
 
 
