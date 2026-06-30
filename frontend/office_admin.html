@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Office Admin — Tea or Coffee</title>
+<link rel="stylesheet" href="/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div id="toasts"></div>
+
+<div class="topbar">
+  <div class="topbar-title">🏢 Office Admin <span class="office-tag" id="office-tag"></span></div>
+  <div class="topbar-right">
+    <button class="btn btn-sm" id="back-btn">← Orders</button>
+    <button class="btn btn-sm" id="theme-btn"></button>
+    <button class="btn btn-sm btn-danger" id="logout-btn">Logout</button>
+  </div>
+</div>
+
+<div class="page">
+  <div class="tabs" id="tabs">
+    <button class="tab-btn">📋 Orders</button>
+    <button class="tab-btn">👥 Users</button>
+    <button class="tab-btn">📝 Names</button>
+    <button class="tab-btn">📊 Stats</button>
+  </div>
+
+  <!-- ORDERS -->
+  <div class="tab-pane" id="tab-orders">
+    <div class="flex-between mb16">
+      <h3 style="margin:0">Today's Orders</h3>
+      <div class="flex gap8">
+        <button class="btn btn-sm" id="refresh-orders">🔄 Refresh</button>
+        <button class="btn btn-sm btn-danger" id="reset-orders">🗑️ Reset All</button>
+      </div>
+    </div>
+    <div class="metrics" id="order-metrics"></div>
+    <div class="table-wrap mb16"><table><thead><tr><th>Name</th><th>Order</th><th></th></tr></thead><tbody id="orders-tbody"></tbody></table></div>
+    <hr>
+    <div class="card">
+      <h4>Place Order for User</h4>
+      <div class="form-row mb8">
+        <input id="po-name" placeholder="User name…">
+        <select id="po-prod"></select>
+      </div>
+      <div class="form-group">
+        <div class="qty-wrap">
+          <button id="po-dec">−</button>
+          <input type="number" id="po-qty" value="1" min="1" max="99">
+          <button id="po-inc">+</button>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-full" id="po-btn">PLACE ORDER</button>
+      <div id="po-msg"></div>
+    </div>
+    <div class="card mt16">
+      <h4>Force Logout All Users</h4>
+      <p class="text-muted mb8">Forces everyone in this office to re-login.</p>
+      <button class="btn btn-primary btn-full" id="logout-all-btn">⚠️ Logout All</button>
+    </div>
+  </div>
+
+  <!-- USERS -->
+  <div class="tab-pane" id="tab-users">
+    <div class="flex-between mb16">
+      <h3 style="margin:0">Users</h3>
+      <button class="btn btn-sm" id="load-users">🔄 Load Users</button>
+    </div>
+    <div class="table-wrap mb16"><table><thead><tr><th>Name</th><th>Role</th><th>Status</th></tr></thead><tbody id="users-tbody"></tbody></table></div>
+    <div class="grid-2">
+      <div class="card">
+        <h4>Set User Role</h4>
+        <div class="form-group"><input id="role-name" placeholder="User name…"></div>
+        <div class="form-group"><select id="role-sel"><option value="user">user</option><option value="office_hr">office_hr</option><option value="office_admin">office_admin</option></select></div>
+        <button class="btn btn-primary btn-full" id="role-btn">Set Role</button>
+        <div id="role-msg"></div>
+      </div>
+      <div class="card">
+        <h4>Disable / Enable User</h4>
+        <div class="form-group"><input id="dis-name" placeholder="User name…"></div>
+        <div class="form-group"><select id="dis-action"><option value="disable">Disable</option><option value="enable">Enable</option></select></div>
+        <button class="btn btn-primary btn-full" id="dis-btn">Apply</button>
+        <div id="dis-msg"></div>
+      </div>
+    </div>
+    <div class="card mt16">
+      <h4>Users Without Password</h4>
+      <button class="btn btn-sm" id="pending-btn">🔍 Fetch</button>
+      <div id="pending-result" class="mt8"></div>
+    </div>
+  </div>
+
+  <!-- NAMES -->
+  <div class="tab-pane" id="tab-names">
+    <div class="flex-between mb16">
+      <h3 style="margin:0">Allowed Names</h3>
+      <button class="btn btn-sm" id="load-names">🔄 Load</button>
+    </div>
+    <div id="names-list" class="mb16"></div>
+    <div class="card">
+      <h4>Add Allowed Name</h4>
+      <div class="form-row">
+        <input id="new-name" placeholder="Full name…">
+        <button class="btn btn-primary" id="add-name-btn">Add</button>
+      </div>
+      <div id="name-msg" class="mt8"></div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="tab-pane" id="tab-stats">
+    <div class="card mb16">
+      <div class="grid-4 mb8">
+        <button class="btn btn-sm" id="r-week">This Week</button>
+        <button class="btn btn-sm" id="r-7d">Last 7 Days</button>
+        <button class="btn btn-sm" id="r-month">This Month</button>
+        <button class="btn btn-sm" id="r-lmonth">Last Month</button>
+      </div>
+      <div class="form-row">
+        <div><label class="form-label">From</label><input type="date" id="r-from"></div>
+        <div><label class="form-label">To</label><input type="date" id="r-to"></div>
+      </div>
+    </div>
+    <div class="metrics" id="stats-metrics"></div>
+    <div class="card mb16"><div class="chart-wrap"><canvas id="chart-daily"></canvas></div></div>
+    <div class="card mb16">
+      <h3>Who Ordered on a Specific Day</h3>
+      <div class="form-row mb8">
+        <input type="date" id="bd-day">
+        <button class="btn btn-primary" id="bd-load">Load</button>
+      </div>
+      <div id="bd-result"></div>
+    </div>
+    <div class="card">
+      <h3>User Stats</h3>
+      <div class="form-group"><select id="user-sel"></select></div>
+      <div class="grid-4 mb8">
+        <button class="btn btn-sm" id="u-week">This Week</button>
+        <button class="btn btn-sm" id="u-7d">Last 7 Days</button>
+        <button class="btn btn-sm" id="u-month">This Month</button>
+        <button class="btn btn-sm" id="u-lmonth">Last Month</button>
+      </div>
+      <div class="form-row mb16">
+        <div><label class="form-label">From</label><input type="date" id="u-from"></div>
+        <div><label class="form-label">To</label><input type="date" id="u-to"></div>
+      </div>
+      <div class="metrics" id="user-metrics"></div>
+      <div class="chart-wrap"><canvas id="chart-user"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+<script>
+const sess = Auth.require(['main_admin','office_admin']);
+if (!sess) throw new Error('redirect');
+Theme.init();
+document.getElementById('office-tag').textContent = sess.office_name || 'Office';
+document.getElementById('back-btn').onclick = () => location.href = '/order.html';
+document.getElementById('logout-btn').onclick = () => Auth.clearSession();
+initTabs('tabs');
+
+// ── Orders ───────────────────────────────────────────────────────────────────
+let products = [];
+async function loadOrders() {
+  const [status, data] = await API.get('/office-admin/orders');
+  if (status !== 200) { Toast.err(data.detail || 'Failed.'); return; }
+  const totals = data.totals || {}, orders = data.orders || [], count = data.order_count ?? orders.length;
+  const metrics = Object.entries(totals).map(([n,i]) => ({ label: `${typeof i==='object'?i.emoji:''} ${n}`, value: typeof i==='object'?i.total:i }));
+  metrics.push({ label: '👥 Orders', value: count });
+  renderMetrics('order-metrics', metrics);
+  document.getElementById('orders-tbody').innerHTML = orders.map(o =>
+    `<tr><td><strong>${o.name}</strong></td><td>${o.product_emoji||'☕'} ${o.product_name||''} ×${o.qty||1}</td>
+     <td><button class="btn btn-sm btn-danger" onclick="removeOrder('${o.name}')">Remove</button></td></tr>`
+  ).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--muted)">No orders today.</td></tr>';
+}
+async function removeOrder(name) {
+  const [s,d] = await API.post('/office-admin/orders/remove', { name, password: '' });
+  if (s === 200) { Toast.ok(`Removed ${name}'s order.`); loadOrders(); }
+  else Toast.err(d.detail || 'Error');
+}
+document.getElementById('refresh-orders').onclick = loadOrders;
+document.getElementById('reset-orders').onclick = async () => {
+  if (!confirm('Reset all orders for this office?')) return;
+  const [s,d] = await API.post('/office-admin/orders/reset', {});
+  if (s === 200) { Toast.ok('All orders reset.'); loadOrders(); }
+  else Toast.err(d.detail || 'Error');
+};
+async function loadProducts() {
+  const [,data] = await API.get('/products');
+  products = data.products || [];
+  const sel = document.getElementById('po-prod');
+  sel.innerHTML = products.map(p => `<option value="${p.id}" data-max="${p.max_qty}">${p.emoji} ${p.name}</option>`).join('');
+}
+document.getElementById('po-dec').onclick = () => { const e = document.getElementById('po-qty'); if (parseInt(e.value) > 1) e.value--; };
+document.getElementById('po-inc').onclick = () => {
+  const e = document.getElementById('po-qty'), max = parseInt(document.getElementById('po-prod').selectedOptions[0]?.dataset.max||99);
+  if (parseInt(e.value) < max) e.value++;
+};
+document.getElementById('po-btn').onclick = async () => {
+  const name = document.getElementById('po-name').value.trim();
+  const productId = document.getElementById('po-prod').value;
+  const qty = parseInt(document.getElementById('po-qty').value);
+  if (!name) return;
+  const [s,d] = await API.post('/office-admin/orders/place', { name, password: '', product_id: productId, qty });
+  const msg = document.getElementById('po-msg');
+  if (s === 200 && d.success) { msg.innerHTML = `<div class="alert alert-ok">${d.message}</div>`; loadOrders(); }
+  else if (s === 409) msg.innerHTML = `<div class="alert alert-warn">${d.detail||'Already ordered.'}</div>`;
+  else msg.innerHTML = `<div class="alert alert-err">${d.detail||'Error.'}</div>`;
+  setTimeout(() => { msg.innerHTML = ''; }, 4000);
+};
+document.getElementById('logout-all-btn').onclick = async () => {
+  const [s,d] = await API.post('/office-admin/users/logout-all', {});
+  if (s === 200) Toast.ok(d.message || 'Done.'); else Toast.err(d.detail || 'Error');
+};
+
+// ── Users ────────────────────────────────────────────────────────────────────
+document.getElementById('load-users').onclick = async () => {
+  const [s,d] = await API.get('/office-admin/users');
+  if (s !== 200) { Toast.err(d.detail || 'Error'); return; }
+  const users = d.users || [];
+  document.getElementById('users-tbody').innerHTML = users.map(u => {
+    const rc = u.role === 'main_admin' ? 'r-main_admin' : u.role === 'office_admin' ? 'r-office_admin' : u.role === 'office_hr' ? 'r-office_hr' : 'r-user';
+    return `<tr><td><strong>${u.name}</strong></td><td><span class="role-badge ${rc}">${u.role}</span></td><td>${u.is_disabled ? '🔴 Disabled' : '🟢 Active'}</td></tr>`;
+  }).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--muted)">No users</td></tr>';
+};
+document.getElementById('role-btn').onclick = async () => {
+  const name = document.getElementById('role-name').value.trim();
+  const role = document.getElementById('role-sel').value;
+  if (!name) return;
+  const [s,d] = await API.post('/office-admin/users/role', { name, role, password: '' });
+  const msg = document.getElementById('role-msg');
+  if (s === 200 && d.success) msg.innerHTML = `<div class="alert alert-ok">${d.message}</div>`;
+  else msg.innerHTML = `<div class="alert alert-err">${d.detail||d.message||'Error'}</div>`;
+  setTimeout(() => { msg.innerHTML = ''; }, 4000);
+};
+document.getElementById('dis-btn').onclick = async () => {
+  const name = document.getElementById('dis-name').value.trim();
+  const disabled = document.getElementById('dis-action').value === 'disable';
+  if (!name) return;
+  const [s,d] = await API.post('/office-admin/users/disable', { name, password: '', disabled });
+  const msg = document.getElementById('dis-msg');
+  if (s === 200 && d.success) msg.innerHTML = `<div class="alert alert-ok">${d.message}</div>`;
+  else msg.innerHTML = `<div class="alert alert-err">${d.message||'Error'}</div>`;
+  setTimeout(() => { msg.innerHTML = ''; }, 4000);
+};
+document.getElementById('pending-btn').onclick = async () => {
+  const [s,d] = await API.get('/office-admin/users/pending-password');
+  const el = document.getElementById('pending-result');
+  if (s !== 200) { el.innerHTML = `<div class="alert alert-err">${d.detail||'Error'}</div>`; return; }
+  const users = d.users || [];
+  el.innerHTML = users.length ? users.map(u => `<div class="mb8">• ${u}</div>`).join('') : '<div class="alert alert-ok">All users have passwords set.</div>';
+};
+
+// ── Names ────────────────────────────────────────────────────────────────────
+let namesList = [];
+async function loadNames() {
+  const [s,d] = await API.get('/office-admin/allowed-names');
+  if (s !== 200) { Toast.err(d.detail || 'Error'); return; }
+  namesList = d.names || [];
+  renderNamesList();
+}
+function renderNamesList() {
+  document.getElementById('names-list').innerHTML = namesList.map(n =>
+    `<div class="flex-between mb8"><span>• ${n}</span><button class="btn btn-sm btn-danger" onclick="removeName('${n}')">Remove</button></div>`
+  ).join('') || '<p class="text-muted">No names yet.</p>';
+}
+async function removeName(name) {
+  const [s,d] = await API._fetch('/office-admin/allowed-names', { method: 'DELETE', body: JSON.stringify({ name, password: '' }) });
+  if (s === 200) { Toast.ok(d.message || 'Removed.'); loadNames(); }
+  else Toast.err(d.message || 'Error');
+}
+document.getElementById('load-names').onclick = loadNames;
+document.getElementById('add-name-btn').onclick = async () => {
+  const name = document.getElementById('new-name').value.trim();
+  if (!name) return;
+  const [s,d] = await API.post('/office-admin/allowed-names', { name, password: '' });
+  const msg = document.getElementById('name-msg');
+  if (s === 200 && d.success) { msg.innerHTML = `<div class="alert alert-ok">${d.message}</div>`; document.getElementById('new-name').value = ''; loadNames(); }
+  else if (s === 409) msg.innerHTML = `<div class="alert alert-warn">${d.detail||'Already exists.'}</div>`;
+  else msg.innerHTML = `<div class="alert alert-err">${d.detail||'Error.'}</div>`;
+  setTimeout(() => { msg.innerHTML = ''; }, 4000);
+};
+
+// ── Stats ────────────────────────────────────────────────────────────────────
+const today = D.today();
+document.getElementById('bd-day').value = today;
+document.getElementById('bd-day').max = today;
+async function loadDailyStats(start, end) {
+  const [s,d] = await API.get(`/office-admin/stats/daily?start=${start}&end=${end}`);
+  if (s !== 200) return;
+  const days = d.days || [];
+  renderMetrics('stats-metrics', [
+    { label: '🍵 Tea', value: days.reduce((a,x)=>a+(x.tea||0),0) },
+    { label: '☕ Coffee', value: days.reduce((a,x)=>a+(x.coffee||0),0) },
+    { label: '📅 Active Days', value: days.length },
+  ]);
+  teaCoffeeChart('chart-daily', days, 'bar');
+}
+statsDateRange('r', loadDailyStats);
+
+document.getElementById('bd-load').onclick = async () => {
+  const day = document.getElementById('bd-day').value;
+  const [s,d] = await API.get(`/office-admin/stats/users/day?date=${day}`);
+  const el = document.getElementById('bd-result');
+  if (s !== 200) { el.innerHTML = `<div class="alert alert-err">${d.detail||'Failed.'}</div>`; return; }
+  const orders = d.orders || [];
+  el.innerHTML = `<p class="text-muted mb8"><strong>${d.date}</strong> — 🍵 ${d.total_tea} | ☕ ${d.total_coffee}</p>
+    <div class="table-wrap"><table><thead><tr><th>Name</th><th>Product</th><th>Qty</th></tr></thead>
+    <tbody>${orders.map(o=>`<tr><td>${o.name}</td><td>${o.product_name||''}</td><td>${o.qty}</td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;color:var(--muted)">No orders</td></tr>'}
+    </tbody></table></div>`;
+};
+
+let selectedUser = '';
+async function initUserSel() {
+  const [s,d] = await API.get('/office-admin/stats/user-names');
+  const names = (s === 200 ? d.names : []) || [];
+  const sel = document.getElementById('user-sel');
+  sel.innerHTML = names.map(n => `<option>${n}</option>`).join('');
+  if (names[0]) { selectedUser = names[0]; loadUserStats(); }
+  sel.addEventListener('change', () => { selectedUser = sel.value; loadUserStats(document.getElementById('u-from').value, document.getElementById('u-to').value); });
+}
+async function loadUserStats(start, end) {
+  if (!start) start = D.addDays(today, -6);
+  if (!end) end = today;
+  if (!selectedUser) return;
+  const [s,d] = await API.get(`/office-admin/stats/user?name=${encodeURIComponent(selectedUser)}&start=${start}&end=${end}`);
+  if (s !== 200) return;
+  renderMetrics('user-metrics', [
+    { label: '🍵 Tea', value: d.total_tea || 0 },
+    { label: '☕ Coffee', value: d.total_coffee || 0 },
+    { label: '📅 Days', value: d.order_days || 0 },
+  ]);
+  teaCoffeeChart('chart-user', d.days || [], 'bar');
+}
+document.getElementById('u-from').value = D.addDays(today, -6);
+document.getElementById('u-to').value = today;
+function setUserRange(s, e) { document.getElementById('u-from').value = s; document.getElementById('u-to').value = e; loadUserStats(s, e); }
+document.getElementById('u-week').onclick = () => setUserRange(D.weekStart(), today);
+document.getElementById('u-7d').onclick = () => setUserRange(D.addDays(today, -6), today);
+document.getElementById('u-month').onclick = () => setUserRange(D.monthStart(), today);
+document.getElementById('u-lmonth').onclick = () => { const r = D.lastMonth(); setUserRange(r.start, r.end); };
+document.getElementById('u-from').addEventListener('change', e => loadUserStats(e.target.value, document.getElementById('u-to').value));
+document.getElementById('u-to').addEventListener('change', e => loadUserStats(document.getElementById('u-from').value, e.target.value));
+
+loadOrders();
+loadProducts();
+initUserSel();
+</script>
+</body>
+</html>

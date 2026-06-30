@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin — Tea or Coffee</title>
+<link rel="stylesheet" href="/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div id="toasts"></div>
+
+<div class="topbar">
+  <div class="topbar-title">⚙️ Main Admin Panel</div>
+  <div class="topbar-right">
+    <button class="btn btn-sm" id="orders-btn">← Orders</button>
+    <button class="btn btn-sm" id="theme-btn"></button>
+    <button class="btn btn-sm btn-danger" id="logout-btn">Logout</button>
+  </div>
+</div>
+
+<div class="page">
+  <!-- Admin password gate -->
+  <div class="card mb16" id="pw-card">
+    <h4>Admin Password</h4>
+    <div class="form-row">
+      <input type="password" id="admin-pw" placeholder="Enter admin password…" autocomplete="current-password">
+      <button class="btn btn-primary" id="unlock-btn">Unlock</button>
+    </div>
+    <div id="pw-msg" class="mt8"></div>
+  </div>
+
+  <div id="admin-panel" style="display:none">
+    <div class="tabs" id="tabs">
+      <button class="tab-btn">📋 Orders</button>
+      <button class="tab-btn">🏢 Offices</button>
+      <button class="tab-btn">👥 Users</button>
+      <button class="tab-btn">📝 Names</button>
+      <button class="tab-btn">🛒 Products</button>
+      <button class="tab-btn">🚚 Distributors</button>
+      <button class="tab-btn">📊 Stats</button>
+    </div>
+
+    <!-- ═══ ORDERS ═══ -->
+    <div class="tab-pane" id="tab-orders">
+      <div class="form-group mb16">
+        <label class="form-label">Filter by Office</label>
+        <select id="orders-office-sel"><option value="">All Offices</option></select>
+      </div>
+      <div class="flex-between mb16">
+        <h3 style="margin:0">Today's Orders</h3>
+        <button class="btn btn-sm btn-danger" id="reset-btn">🗑️ Reset Orders</button>
+      </div>
+      <div class="metrics" id="order-metrics"></div>
+      <div class="table-wrap mb16"><table><thead><tr><th>Name</th><th>Order</th><th></th></tr></thead><tbody id="orders-tbody"></tbody></table></div>
+      <div class="card">
+        <h4>Place Order for User</h4>
+        <div class="form-row mb8">
+          <input id="po-name" placeholder="User name…">
+          <select id="po-prod"></select>
+        </div>
+        <div class="qty-wrap mb8">
+          <button id="po-dec">−</button>
+          <input type="number" id="po-qty" value="1" min="1" max="99">
+          <button id="po-inc">+</button>
+        </div>
+        <button class="btn btn-primary btn-full" id="po-btn">PLACE ORDER</button>
+        <div id="po-msg" class="mt8"></div>
+      </div>
+      <div class="card mt16">
+        <h4>Force Logout All Users</h4>
+        <div class="form-group"><select id="logout-office-sel"><option value="">All Offices</option></select></div>
+        <button class="btn btn-primary btn-full" id="logout-all-btn">⚠️ Logout All</button>
+      </div>
+    </div>
+
+    <!-- ═══ OFFICES ═══ -->
+    <div class="tab-pane" id="tab-offices">
+      <button class="btn btn-sm mb16" id="load-offices">🔄 Load Offices</button>
+      <div class="table-wrap mb16"><table><thead><tr><th>Name</th><th>Slug</th><th>Status</th><th></th></tr></thead><tbody id="offices-tbody"></tbody></table></div>
+      <div class="grid-2">
+        <div class="card">
+          <h4>Create Office</h4>
+          <div class="form-group"><input id="new-office-name" placeholder="Office name…"></div>
+          <div class="form-group"><input id="new-office-slug" placeholder="slug (lowercase, no spaces)…"></div>
+          <button class="btn btn-primary btn-full" id="create-office-btn">Create</button>
+          <div id="create-office-msg" class="mt8"></div>
+        </div>
+        <div class="card">
+          <h4>Rename Office</h4>
+          <div class="form-group"><select id="rename-office-sel"></select></div>
+          <div class="form-group"><input id="rename-office-name" placeholder="New name…"></div>
+          <button class="btn btn-primary btn-full" id="rename-office-btn">Rename</button>
+          <div id="rename-office-msg" class="mt8"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ USERS ═══ -->
+    <div class="tab-pane" id="tab-users">
+      <div class="form-row mb16" style="flex-wrap:wrap;gap:8px">
+        <select id="users-office-sel" style="max-width:200px"><option value="">All Offices</option></select>
+        <button class="btn btn-sm" id="load-users">🔄 Load Users</button>
+      </div>
+      <div class="table-wrap mb16"><table><thead><tr><th>Name</th><th>Nick</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody id="users-tbody"></tbody></table></div>
+      <div class="grid-2">
+        <div class="card">
+          <h4>Set Role</h4>
+          <div class="form-group"><input id="role-name" placeholder="User name…"></div>
+          <div class="form-group"><select id="role-sel"><option value="user">user</option><option value="office_hr">office_hr</option><option value="office_admin">office_admin</option><option value="main_admin">main_admin</option></select></div>
+          <button class="btn btn-primary btn-full" id="role-btn">Set Role</button>
+          <div id="role-msg" class="mt8"></div>
+        </div>
+        <div class="card">
+          <h4>Disable / Enable</h4>
+          <div class="form-group"><input id="dis-name" placeholder="User name…"></div>
+          <div class="form-group"><select id="dis-action"><option value="1">Disable</option><option value="0">Enable</option></select></div>
+          <button class="btn btn-primary btn-full" id="dis-btn">Apply</button>
+          <div id="dis-msg" class="mt8"></div>
+        </div>
+      </div>
+      <div class="grid-2 mt16">
+        <div class="card">
+          <h4>Rename User</h4>
+          <div class="form-group"><input id="rename-old" placeholder="Old name…"></div>
+          <div class="form-group"><input id="rename-new" placeholder="New name…"></div>
+          <button class="btn btn-primary btn-full" id="rename-user-btn">Rename</button>
+          <div id="rename-user-msg" class="mt8"></div>
+        </div>
+        <div class="card">
+          <h4>Set Nickname</h4>
+          <div class="form-group"><input id="nick-name" placeholder="User name…"></div>
+          <div class="form-group"><input id="nick-val" placeholder="Nickname (blank to clear)…"></div>
+          <button class="btn btn-primary btn-full" id="nick-btn">Set Nickname</button>
+          <div id="nick-msg" class="mt8"></div>
+        </div>
+      </div>
+      <div class="card mt16">
+        <h4>Unbind User (reset login)</h4>
+        <div class="form-row">
+          <input id="unbind-name" placeholder="User name…">
+          <button class="btn btn-primary" id="unbind-btn">Unbind</button>
+        </div>
+        <div id="unbind-msg" class="mt8"></div>
+      </div>
+      <div class="card mt16">
+        <h4>Users Without Password</h4>
+        <div class="form-group"><select id="pending-office-sel"><option value="">All Offices</option></select></div>
+        <button class="btn btn-sm mb8" id="pending-btn">🔍 Fetch</button>
+        <div id="pending-result"></div>
+      </div>
+    </div>
+
+    <!-- ═══ NAMES ═══ -->
+    <div class="tab-pane" id="tab-names">
+      <div class="form-row mb16" style="flex-wrap:wrap;gap:8px">
+        <select id="names-office-sel" style="max-width:200px"><option value="">All Offices</option></select>
+        <button class="btn btn-sm" id="load-names">🔄 Load</button>
+      </div>
+      <div id="names-list" class="mb16"></div>
+      <div class="card">
+        <h4>Add Name</h4>
+        <div class="form-row">
+          <input id="new-name" placeholder="Full name…">
+          <button class="btn btn-primary" id="add-name-btn">Add</button>
+        </div>
+        <div id="name-msg" class="mt8"></div>
+      </div>
+    </div>
+
+    <!-- ═══ PRODUCTS ═══ -->
+    <div class="tab-pane" id="tab-products">
+      <button class="btn btn-sm mb16" id="load-products-btn">🔄 Load Products</button>
+      <div class="table-wrap mb16"><table><thead><tr><th>Name</th><th>Emoji</th><th>Max</th><th>Office</th><th>Status</th><th></th></tr></thead><tbody id="products-tbody"></tbody></table></div>
+      <div class="card">
+        <h4>Add Product</h4>
+        <div class="form-row mb8">
+          <input id="prod-office-id" placeholder="Office ID…">
+          <input id="prod-name" placeholder="Name…">
+          <input id="prod-emoji" placeholder="Emoji…" style="max-width:80px">
+          <input type="number" id="prod-max" value="5" min="1" max="99" style="max-width:70px">
+        </div>
+        <button class="btn btn-primary btn-full" id="add-prod-btn">Add Product</button>
+        <div id="add-prod-msg" class="mt8"></div>
+      </div>
+    </div>
+
+    <!-- ═══ DISTRIBUTORS ═══ -->
+    <div class="tab-pane" id="tab-dist">
+      <button class="btn btn-sm mb16" id="load-dist-btn">🔄 Load Companies</button>
+      <div class="table-wrap mb16"><table><thead><tr><th>Name</th><th>Status</th><th></th></tr></thead><tbody id="dist-tbody"></tbody></table></div>
+      <div class="card">
+        <h4>Add Distributor Company</h4>
+        <div class="form-row mb8">
+          <select id="dist-office-sel"><option value="">Select office…</option></select>
+          <input id="dist-name" placeholder="Company name…">
+        </div>
+        <button class="btn btn-primary btn-full" id="create-dist-btn">Create Company</button>
+        <div id="create-dist-msg" class="mt8"></div>
+      </div>
+    </div>
+
+    <!-- ═══ STATS ═══ -->
+    <div class="tab-pane" id="tab-stats">
+      <div class="form-group mb16">
+        <label class="form-label">Office Filter</label>
+        <select id="stats-office-sel"><option value="">All Offices</option></select>
+      </div>
+      <div class="card mb16">
+        <div class="grid-4 mb8">
+          <button class="btn btn-sm" id="r-week">This Week</button>
+          <button class="btn btn-sm" id="r-7d">Last 7 Days</button>
+          <button class="btn btn-sm" id="r-month">This Month</button>
+          <button class="btn btn-sm" id="r-lmonth">Last Month</button>
+        </div>
+        <div class="form-row">
+          <div><label class="form-label">From</label><input type="date" id="r-from"></div>
+          <div><label class="form-label">To</label><input type="date" id="r-to"></div>
+        </div>
+      </div>
+      <div class="metrics" id="stats-metrics"></div>
+      <div class="card mb16"><div class="chart-wrap"><canvas id="chart-daily"></canvas></div></div>
+      <div class="card mb16">
+        <h3>Who Ordered on a Specific Day</h3>
+        <div class="form-row mb8">
+          <input type="date" id="bd-day">
+          <button class="btn btn-primary" id="bd-load">Load</button>
+        </div>
+        <div id="bd-result"></div>
+      </div>
+      <div class="card">
+        <h3>User Stats</h3>
+        <div class="form-group"><select id="user-sel"></select></div>
+        <div class="grid-4 mb8">
+          <button class="btn btn-sm" id="u-week">This Week</button>
+          <button class="btn btn-sm" id="u-7d">Last 7 Days</button>
+          <button class="btn btn-sm" id="u-month">This Month</button>
+          <button class="btn btn-sm" id="u-lmonth">Last Month</button>
+        </div>
+        <div class="form-row mb16">
+          <div><label class="form-label">From</label><input type="date" id="u-from"></div>
+          <div><label class="form-label">To</label><input type="date" id="u-to"></div>
+        </div>
+        <div class="metrics" id="user-metrics"></div>
+        <div class="chart-wrap"><canvas id="chart-user"></canvas></div>
+      </div>
+    </div>
+  </div><!-- /admin-panel -->
+</div>
+
+<script src="/app.js"></script>
+<script>
+const sess = Auth.require(['main_admin']);
+if (!sess) throw new Error('redirect');
+Theme.init();
+document.getElementById('orders-btn').onclick = () => location.href = '/order.html';
+document.getElementById('logout-btn').onclick = () => Auth.clearSession();
+
+// Admin password — persist in sessionStorage so reload doesn't ask again
+let adminPw = sessionStorage.getItem('toc_admin_pw') || '';
+if (adminPw) unlockPanel();
+
+function unlockPanel() {
+  document.getElementById('pw-card').style.display = 'none';
+  document.getElementById('admin-panel').style.display = '';
+  initTabs('tabs');
+  populateOfficeSels();
+  loadProducts();
+  loadOrdersTab();
+}
+
+document.getElementById('unlock-btn').onclick = async () => {
+  const pw = document.getElementById('admin-pw').value.trim();
+  if (!pw) return;
+  // Verify by trying to load offices
+  const [s,] = await API.adminGet('/offices', { password: pw });
+  if (s === 200) {
+    adminPw = pw;
+    sessionStorage.setItem('toc_admin_pw', pw);
+    document.getElementById('pw-msg').innerHTML = '';
+    unlockPanel();
+  } else {
+    document.getElementById('pw-msg').innerHTML = '<div class="alert alert-err">Invalid admin password.</div>';
+  }
+};
+document.getElementById('admin-pw').addEventListener('keydown', e => e.key === 'Enter' && document.getElementById('unlock-btn').click());
+
+// ── Shared office selector population ─────────────────────────────────────────
+let officesList = [];
+async function populateOfficeSels() {
+  const [s,d] = await API.adminGet('/offices', { password: adminPw });
+  officesList = (s === 200 ? d.offices : []) || [];
+  const opts = officesList.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
+  const allOpts = `<option value="">All Offices</option>` + opts;
+  ['orders-office-sel','logout-office-sel','users-office-sel','names-office-sel','pending-office-sel','stats-office-sel'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.innerHTML = allOpts;
+  });
+  document.getElementById('rename-office-sel').innerHTML = opts;
+  document.getElementById('dist-office-sel').innerHTML = `<option value="">Select office…</option>` + opts;
+}
+
+// ── Orders tab ─────────────────────────────────────────────────────────────────
+let products = [];
+async function loadProducts() {
+  const [,d] = await API.get('/products');
+  products = d.products || [];
+  const sel = document.getElementById('po-prod');
+  sel.innerHTML = products.map(p => `<option value="${p.id}" data-max="${p.max_qty}">${p.emoji} ${p.name}</option>`).join('');
+}
+async function loadOrdersTab() {
+  const officeId = document.getElementById('orders-office-sel')?.value || '';
+  const params = { password: adminPw };
+  if (officeId) params.office_id = officeId;
+  // Use /votes for order list — admin gets all offices' orders
+  // Actually use the admin stats breakdown approach via existing API
+  // The orders tab in the original just shows "reset" and product selector
+  // Load orders via office-filtered votes endpoint if possible
+  // For now render products
+}
+document.getElementById('orders-office-sel')?.addEventListener('change', loadOrdersTab);
+document.getElementById('reset-btn').onclick = async () => {
+  const officeId = document.getElementById('orders-office-sel').value;
+  if (!confirm('Reset orders' + (officeId ? ' for this office' : ' for ALL offices') + '?')) return;
+  const body = { password: adminPw };
+  if (officeId) body.office_id = officeId;
+  const [s,d] = await API.adminPost('/reset', body);
+  if (s === 200) Toast.ok('Orders reset.'); else Toast.err(d.detail || 'Error');
+};
+document.getElementById('po-dec').onclick = () => { const e = document.getElementById('po-qty'); if (parseInt(e.value) > 1) e.value--; };
+document.getElementById('po-inc').onclick = () => {
+  const e = document.getElementById('po-qty'), max = parseInt(document.getElementById('po-prod').selectedOptions[0]?.dataset.max||99);
+  if (parseInt(e.value) < max) e.value++;
+};
+document.getElementById('po-btn').onclick = async () => {
+  const name = document.getElementById('po-name').value.trim();
+  const productId = document.getElementById('po-prod').value;
+  const qty = parseInt(document.getElementById('po-qty').value);
+  if (!name || !productId) return;
+  const [s,d] = await API.adminPost('/place-order', { name, password: adminPw, product_id: productId, qty });
+  const msg = document.getElementById('po-msg');
+  if (s === 200 && d.success) msg.innerHTML = `<div class="alert alert-ok">${d.message}</div>`;
+  else if (s === 409) msg.innerHTML = `<div class="alert alert-warn">${d.detail||'Already ordered.'}</div>`;
+  else msg.innerHTML = `<div class="alert alert-err">${d.detail||'Error.'}</div>`;
+  setTimeout(() => { msg.innerHTML = ''; }, 4000);
+};
+document.getElementById('logout-all-btn').onclick = async () => {
+  const officeId = document.getElementById('logout-office-sel').value;
+  const body = { password: adminPw };
+  if (officeId) body.office_id = officeId;
+  const [s,d] = await API.adminPost('/remove-all-logins', body);
+  if (s === 200) Toast.ok(d.message || 'Done.'); else Toast.err(d.detail || 'Error');
+};
+
+// ── Offices tab ───────────────────────────────────────────────────────────────
+async function renderOffices() {
+  const [s,d] = await API.adminGet('/offices', { password: adminPw });
+  officesList = (s === 200 ? d.offices : []) || [];
+  const opts = officesList.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
+  document.getElementById('rename-office-sel').innerHTML = opts;
+  document.getElementById('offices-tbody').innerHTML = officesList.map(o =>
+    `<tr><td><strong>${o.name}</strong></td><td style="color:var(--muted)">${o.slug}</td>
+     <td>${o.is_active ? '🟢 Active' : '🔴 Inactive'}</td>
+     <td><button class="btn btn-sm" onclick="toggleOffice('${o.id}',${!o.is_active})">${o.is_active ? 'Deactivate' : 'Activate'}</button></td></tr>`
+  ).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--muted)">No offices.</td></tr>';
+}
+async function toggleOffice(id, active) {
+  const [s,d] = await API.adminPost('/offices/active', { office_id: id, is_active: active, password: adminPw });
+  if (s === 200) { Toast.ok(d.message || 'Updated.'); renderOffices(); }
+  else Toast.err(d.detail || 'Error');
+}
+document.getElementById('load-offices').onclick = renderOffices;
+document.getElementById('create-office-btn').onclick = async () => {
+  const name = document.getElementById('new-office-name').value.trim();
+  const slug = document.getElementById('new-office-slug').value.trim().toLowerCase().replace(/\s+/g, '-');
+  const msg = document.getElementById('create-office-msg');
+  if (!name || !slug) { msg.innerHTML = '<div class="alert alert-warn">Fill both fields.</div>'; return; }
+  const [s,d] = await API.adminPost('/offices', { name, slug, password: adminPw });
+  if (s === 200 && d.success) { msg.innerHTML = `<div class="alert alert-ok">${d.message}</div>`; document.getElementById('new-office-name').value = ''; document.getElementById('new-office-slug').value = ''; renderOffices(); populateOfficeSels(); }
+  else if (s === 409) msg.innerHTML = `<div class="alert alert-warn">${d.detail||'Already exists.'}</div>`;
+  else msg.innerHTML = `<div class="alert alert-err">${d.detail||'Error.'}</div>`;
+  setTimeout(() => { msg.innerHTML = ''; }, 4000);
+};
+document.getElementById('rename-office-btn').onclick = async () => {
+  const officeId = document.getElementById('rename-office-sel').value;
+  const name = document.getElementById('rename-office-name').value.trim();
+  const msg = document.getElementById('rename-office-msg');
+  if (!name || !officeId) return;
+  const [s,d] = await API.adminPost('/offices', { office_id: officeId, name, password: adminPw }, 'PUT');
+  if (s === 200 && d.success) { msg.innerHTML = `<div class="alert alert-ok">${d.message}</div>`; renderOffices(); populateOfficeSels(); }
+  else msg.innerHTML = `<div class="alert alert-err">${d.detail||'Error.'}</div>`;
+  setTimeout(() => { msg.innerHTML = ''; }, 4000);
+};
+
+// ── Users tab ─────────────────────────────────────────────────────────────────
+document.getElementById('load-users').onclick = async () => {
+  const officeId = document.getElementById('users-office-sel').value;
+  const params = { password: adminPw };
+  if (officeId) params.office_id = officeId;
+  const [s,d] = await API.adminGet('/users', params);
+  if (s !== 200) { Toast.err(d.detail || 'Error'); return; }
+  const users = d.users || [];
+  document.getElementById('users-tbody').innerHTML = users.map(u => {
+    const rc = `r-${u.role}`;
+    return `<tr><td><strong>${u.name}</strong></td><td style="color:var(--muted)">${u.nickname||''}</td>
+      <td><span class="role-badge ${rc}">${u.role}</span></td>
+      <td>${u.is_disabled ? '🔴' : '🟢'}</td>
+      <td style="color:var(--muted);font-size:12px">${u.office_id||''}</td></tr>`;
+  }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted)">No users.</td></tr>';
+};
+function quickMsg(id, html, ms = 4000) { const e = document.getElementById(id); if (e) { e.innerHTML = html; setTimeout(() => { e.innerHTML = ''; }, ms); } }
+document.getElementById('role-btn').onclick = async () => {
+  const name = document.getElementById('role-name').value.trim(), role = document.getElementById('role-sel').value;
+  if (!name) return;
+  const [s,d] = await API.adminPost('/users/role', { name, role, password: adminPw });
+  quickMsg('role-msg', s===200&&d.success ? `<div class="alert alert-ok">${d.message}</div>` : `<div class="alert alert-err">${d.detail||'Error'}</div>`);
+};
+document.getElementById('dis-btn').onclick = async () => {
+  const name = document.getElementById('dis-name').value.trim(), disabled = document.getElementById('dis-action').value === '1';
+  if (!name) return;
+  const [s,d] = await API.adminPost('/set-user-disabled', { name, password: adminPw, disabled });
+  quickMsg('dis-msg', s===200&&d.success ? `<div class="alert alert-ok">${d.message}</div>` : `<div class="alert alert-err">${d.message||'Error'}</div>`);
+};
+document.getElementById('rename-user-btn').onclick = async () => {
+  const old_name = document.getElementById('rename-old').value.trim(), new_name = document.getElementById('rename-new').value.trim();
+  if (!old_name||!new_name) return;
+  const [s,d] = await API.adminPost('/users/rename', { old_name, new_name, password: adminPw }, 'PUT');
+  quickMsg('rename-user-msg', s===200&&d.success ? `<div class="alert alert-ok">${d.message}</div>` : `<div class="alert alert-err">${d.detail||'Error'}</div>`);
+};
+document.getElementById('nick-btn').onclick = async () => {
+  const name = document.getElementById('nick-name').value.trim(), nickname = document.getElementById('nick-val').value.trim() || null;
+  if (!name) return;
+  const [s,d] = await API.adminPost('/users/nickname', { name, nickname, password: adminPw }, 'PUT');
+  quickMsg('nick-msg', s===200&&d.success ? `<div class="alert alert-ok">${d.message}</div>` : `<div class="alert alert-err">${d.detail||'Error'}</div>`);
+};
+document.getElementById('unbind-btn').onclick = async () => {
+  const name = document.getElementById('unbind-name').value.trim();
+  if (!name) return;
+  const [s,d] = await API.adminPost('/unbind', { name, password: adminPw });
+  quickMsg('unbind-msg', s===200&&d.success ? `<div class="alert alert-ok">${d.message}</div>` : `<div class="alert alert-err">${d.detail||'Error'}</div>`);
+};
+document.getElementById('pending-btn').onclick = async () => {
+  const officeId = document.getElementById('pending-office-sel').value;
+  const params = { password: adminPw };
+  if (officeId) params.office_id = officeId;
+  const [s,d] = await API.adminGet('/users/pending-password', params);
+  const el = document.getElementById('pending-result');
+  if (s !== 200) { el.innerHTML = `<div class="alert alert-err">${d.detail||'Error'}</div>`; return; }
+  const users = d.users || [];
+  el.innerHTML = users.length ? users.map(u=>`<div class="mb8">• ${u}</div>`).join('') : '<div class="alert alert-ok">All users have passwords set.</div>';
+};
+
+// ── Names tab ─────────────────────────────────────────────────────────────────
+let namesList = [];
+async function loadNames() {
+  const officeId = document.getElementById('names-office-sel').value;
+  const params = { password: adminPw };
+  if (officeId) params.office_id = officeId;
+  const [s,d] = await API.adminGet('/allowed-names', params);
+  namesList = (s === 200 ? d.names : []) || [];
+  document.getElementById('names-list').innerHTML = namesList.map(n =>
+    `<div class="flex-between mb8"><span>• ${n}</span><button class="btn btn-sm btn-danger" onclick="removeName('${n}')">Remove</button></div>`
+  ).join('') || '<p class="text-muted">No names yet.</p>';
+}
+async function removeName(name) {
+  const [s,d] = await API.adminPost('/allowed-names', { name, password: adminPw }, 'DELETE');
+  if (s === 200) { Toast.ok('Removed.'); loadNames(); } else Toast.err(d.detail||'Error');
+}
+document.getElementById('load-names').onclick = loadNames;
+document.getElementById('add-name-btn').onclick = async () => {
+  const name = document.getElementById('new-name').value.trim();
+  const officeId = document.getElementById('names-office-sel').value;
+  if (!name) return;
+  const body = { name, password: adminPw };
+  if (officeId) body.office_id = officeId;
+  const [s,d] = await API.adminPost('/allowed-names', body);
+  const msg = document.getElementById('name-msg');
+  if (s === 200 && d.success) { msg.innerHTML = `<div class="alert alert-ok">${d.message}</div>`; document.getElementById('new-name').value = ''; loadNames(); }
+  else if (s === 409) msg.innerHTML = `<div class="alert alert-warn">${d.detail||'Already exists.'}</div>`;
+  else msg.innerHTML = `<div class="alert alert-err">${d.detail||'Error.'}</div>`;
+  setTimeout(() => { msg.innerHTML = ''; }, 4000);
+};
+
+// ── Products tab ──────────────────────────────────────────────────────────────
+async function loadProductsList() {
+  const [s,d] = await API.get('/products');
+  if (s !== 200) return;
+  const allProds = d.products || [];
+  document.getElementById('products-tbody').innerHTML = allProds.map(p =>
+    `<tr><td>${p.name}</td><td>${p.emoji}</td><td>${p.max_qty}</td><td style="color:var(--muted);font-size:12px">${p.office_id||''}</td>
+     <td>${p.is_active ? '🟢' : '🔴'}</td>
+     <td class="row-actions">
+       <button class="btn btn-sm" onclick="toggleProduct('${p.id}',${!p.is_active})">${p.is_active?'Deactivate':'Activate'}</button>
+     </td></tr>`
+  ).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted)">No products.</td></tr>';
+}
+async function toggleProduct(id, active) {
+  const [s,d] = await API.post('/products/active', { product_id: id, is_active: active, password: adminPw });
+  if (s === 200) { Toast.ok(d.message||'Updated.'); loadProductsList(); }
+  else Toast.err(d.detail||'Error');
+}
+document.getElementById('load-products-btn').onclick = loadProductsList;
+document.getElementById('add-prod-btn').onclick = async () => {
+  const officeId = document.getElementById('prod-office-id').value.trim();
+  const name = document.getElementById('prod-name').value.trim();
+  const emoji = document.getElementById('prod-emoji').value.trim();
+  const maxQty = parseInt(document.getElementById('prod-max').value);
+  const msg = document.getElementById('add-prod-msg');
+  if (!officeId||!name||!emoji) { msg.innerHTML = '<div class="alert alert-warn">Fill all fields.</div>'; return; }
+  const [s,d] = await API.post('/products', { office_id: officeId, name, emoji, max_qty: maxQty, password: adminPw });
+  if (s === 200 && d.success) { msg.innerHTML = `<div class="alert alert-ok">${d.message}</div>`; loadProductsList(); }
+  else msg.innerHTML = `<div class="alert alert-err">${d.detail||'Error.'}</div>`;
+  setTimeout(() => { msg.innerHTML = ''; }, 4000);
+};
+
+// ── Distributors tab ──────────────────────────────────────────────────────────
+document.getElementById('load-dist-btn').onclick = async () => {
+  const [s,d] = await API.get('/distributor/companies');
+  if (s !== 200) { Toast.err(d.detail||'Error'); return; }
+  document.getElementById('dist-tbody').innerHTML = (d.companies||[]).map(c =>
+    `<tr><td><strong>${c.name}</strong></td><td>${c.is_active?'🟢 Active':'🔴 Inactive'}</td>
+     <td><button class="btn btn-sm" onclick="toggleDist('${c.id}',${!c.is_active})">${c.is_active?'Deactivate':'Activate'}</button></td></tr>`
+  ).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--muted)">No companies.</td></tr>';
+};
+async function toggleDist(id, active) {
+  const [s,d] = await API.post(`/distributor/companies/active?company_id=${id}&is_active=${active}`, {});
+  if (s === 200) { Toast.ok(d.message||'Updated.'); document.getElementById('load-dist-btn').click(); }
+  else Toast.err(d.detail||'Error');
+}
+document.getElementById('create-dist-btn').onclick = async () => {
+  const officeId = document.getElementById('dist-office-sel').value;
+  const name = document.getElementById('dist-name').value.trim();
+  const msg = document.getElementById('create-dist-msg');
+  if (!officeId||!name) { msg.innerHTML = '<div class="alert alert-warn">Select office and enter name.</div>'; return; }
+  const [s,d] = await API.post('/distributor/companies', { name, office_id: officeId, password: adminPw });
+  if (s === 200 && d.success) { msg.innerHTML = `<div class="alert alert-ok">${d.message}</div>`; document.getElementById('dist-name').value = ''; document.getElementById('load-dist-btn').click(); }
+  else if (s === 409) msg.innerHTML = `<div class="alert alert-warn">${d.detail||'Already exists.'}</div>`;
+  else msg.innerHTML = `<div class="alert alert-err">${d.detail||'Error.'}</div>`;
+  setTimeout(() => { msg.innerHTML = ''; }, 4000);
+};
+
+// ── Stats tab ─────────────────────────────────────────────────────────────────
+const today = D.today();
+document.getElementById('bd-day').value = today;
+document.getElementById('bd-day').max = today;
+function getStatsOffice() { return document.getElementById('stats-office-sel').value; }
+
+async function loadAdminStats(start, end) {
+  const params = { password: adminPw, start, end };
+  const officeId = getStatsOffice();
+  if (officeId) params.office_id = officeId;
+  const [s,d] = await API.adminGet('/admin/stats/daily', params);
+  if (s !== 200) return;
+  const days = d.days || [];
+  renderMetrics('stats-metrics', [
+    { label: '🍵 Tea', value: days.reduce((a,x)=>a+(x.tea||0),0) },
+    { label: '☕ Coffee', value: days.reduce((a,x)=>a+(x.coffee||0),0) },
+    { label: '📅 Active Days', value: days.length },
+  ]);
+  teaCoffeeChart('chart-daily', days, 'bar');
+}
+statsDateRange('r', loadAdminStats);
+document.getElementById('stats-office-sel').addEventListener('change', () => {
+  const from = document.getElementById('r-from').value, to = document.getElementById('r-to').value;
+  if (from && to) loadAdminStats(from, to);
+});
+
+document.getElementById('bd-load').onclick = async () => {
+  const day = document.getElementById('bd-day').value;
+  const params = { password: adminPw, date: day };
+  const officeId = getStatsOffice(); if (officeId) params.office_id = officeId;
+  const [s,d] = await API.adminGet('/admin/stats/users/day', params);
+  const el = document.getElementById('bd-result');
+  if (s !== 200) { el.innerHTML = `<div class="alert alert-err">${d.detail||'Failed.'}</div>`; return; }
+  const orders = d.orders || [];
+  el.innerHTML = `<p class="text-muted mb8"><strong>${d.date}</strong> — 🍵 ${d.total_tea} | ☕ ${d.total_coffee}</p>
+    <div class="table-wrap"><table><thead><tr><th>Name</th><th>Product</th><th>Qty</th></tr></thead>
+    <tbody>${orders.map(o=>`<tr><td>${o.name}</td><td>${o.product_name||''}</td><td>${o.qty}</td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;color:var(--muted)">No orders</td></tr>'}
+    </tbody></table></div>`;
+};
+
+let selectedUser = '';
+async function initUserSel() {
+  const params = { password: adminPw };
+  const officeId = getStatsOffice(); if (officeId) params.office_id = officeId;
+  const [s,d] = await API.adminGet('/admin/stats/user-names', params);
+  const names = (s === 200 ? d.names : []) || [];
+  const sel = document.getElementById('user-sel');
+  sel.innerHTML = names.map(n => `<option>${n}</option>`).join('');
+  if (names[0]) { selectedUser = names[0]; loadUserStats(); }
+  sel.addEventListener('change', () => { selectedUser = sel.value; loadUserStats(document.getElementById('u-from').value, document.getElementById('u-to').value); });
+}
+async function loadUserStats(start, end) {
+  if (!start) start = D.addDays(today, -6);
+  if (!end) end = today;
+  if (!selectedUser) return;
+  const params = { password: adminPw, name: selectedUser, start, end };
+  const officeId = getStatsOffice(); if (officeId) params.office_id = officeId;
+  const [s,d] = await API.adminGet('/admin/stats/user', params);
+  if (s !== 200) return;
+  renderMetrics('user-metrics', [
+    { label: '🍵 Tea', value: d.total_tea || 0 },
+    { label: '☕ Coffee', value: d.total_coffee || 0 },
+    { label: '📅 Days', value: d.order_days || 0 },
+  ]);
+  teaCoffeeChart('chart-user', d.days || [], 'bar');
+}
+document.getElementById('u-from').value = D.addDays(today, -6);
+document.getElementById('u-to').value = today;
+function setUserRange(s, e) { document.getElementById('u-from').value = s; document.getElementById('u-to').value = e; loadUserStats(s, e); }
+document.getElementById('u-week').onclick = () => setUserRange(D.weekStart(), today);
+document.getElementById('u-7d').onclick = () => setUserRange(D.addDays(today, -6), today);
+document.getElementById('u-month').onclick = () => setUserRange(D.monthStart(), today);
+document.getElementById('u-lmonth').onclick = () => { const r = D.lastMonth(); setUserRange(r.start, r.end); };
+document.getElementById('u-from').addEventListener('change', e => loadUserStats(e.target.value, document.getElementById('u-to').value));
+document.getElementById('u-to').addEventListener('change', e => loadUserStats(document.getElementById('u-from').value, e.target.value));
+</script>
+</body>
+</html>

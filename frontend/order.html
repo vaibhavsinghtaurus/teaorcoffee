@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Order — Tea or Coffee</title>
+<link rel="stylesheet" href="/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div id="toasts"></div>
+
+<div class="topbar">
+  <div class="topbar-title">☕ <span id="greeting">Good day</span> <span class="office-tag" id="office-tag"></span></div>
+  <div class="topbar-right">
+    <button class="btn btn-sm" id="stats-btn">📊 Stats</button>
+    <button class="btn btn-sm" id="panel-btn" style="display:none"></button>
+    <button class="btn btn-sm" id="theme-btn"></button>
+    <button class="btn btn-sm btn-danger" id="logout-btn">Logout</button>
+  </div>
+</div>
+
+<div class="page">
+  <div class="grid-2" style="margin-bottom:24px">
+
+    <!-- ORDER CARD -->
+    <div class="card">
+      <h2 class="text-center">Place Your Order</h2>
+      <p class="text-muted text-center mb16">Select your beverage for today</p>
+
+      <div id="order-status"></div>
+      <div id="order-form">
+        <div class="form-group"><select id="product-sel"></select></div>
+        <div class="form-group">
+          <div class="qty-wrap">
+            <button id="qty-dec">−</button>
+            <input type="number" id="qty" value="1" min="1" max="99">
+            <button id="qty-inc">+</button>
+          </div>
+        </div>
+        <div id="order-preview" class="order-preview" style="display:none">
+          <span class="text-muted">Your order:</span>
+          <span class="order-badge" id="order-preview-badge"></span>
+        </div>
+        <button class="btn btn-primary btn-full mt8" id="place-btn">PLACE ORDER</button>
+      </div>
+    </div>
+
+    <!-- CHAT CARD -->
+    <div class="card">
+      <h2 class="text-center">💬 Live Chat</h2>
+      <p class="text-muted text-center mb16">You: <strong id="chat-username"></strong></p>
+      <div class="chat-box" id="chat-box"><div class="chat-empty">No messages yet. Start the conversation! 💬</div></div>
+      <div id="chat-err" style="display:none" class="alert alert-warn mb8"></div>
+      <div class="form-row">
+        <input id="chat-input" placeholder="Type a message…" autocomplete="off">
+        <button class="btn btn-primary" id="chat-send" style="flex:0 0 auto">SEND</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIVE TOTALS -->
+  <hr>
+  <h3>📊 Total Orders (Live)</h3>
+  <div class="metrics" id="totals-metrics"></div>
+  <div class="table-wrap mt8">
+    <table><thead><tr><th>Name</th><th>Order</th></tr></thead>
+    <tbody id="totals-tbody"></tbody></table>
+  </div>
+  <div id="votes-err" style="display:none" class="alert alert-warn mt8"></div>
+</div>
+
+<script src="/app.js"></script>
+<script>
+const sess = Auth.require();
+if (!sess) throw new Error('redirect');
+Theme.init();
+
+// Setup nav
+document.getElementById('greeting').textContent = `Good day, ${sess.username}`;
+document.getElementById('office-tag').textContent = sess.office_name || 'Office';
+document.getElementById('chat-username').textContent = sess.username;
+document.getElementById('stats-btn').onclick = () => location.href = '/stats.html';
+document.getElementById('logout-btn').onclick = () => Auth.clearSession();
+
+const panelBtn = document.getElementById('panel-btn');
+if (sess.role === 'main_admin') { panelBtn.style.display = ''; panelBtn.textContent = '⚙️ Admin'; panelBtn.onclick = () => location.href = '/admin.html'; }
+else if (sess.role === 'office_admin') { panelBtn.style.display = ''; panelBtn.textContent = '🏢 Office'; panelBtn.onclick = () => location.href = '/office_admin.html'; }
+else if (sess.role === 'office_hr') { panelBtn.style.display = ''; panelBtn.textContent = '👔 HR'; panelBtn.onclick = () => location.href = '/hr.html'; }
+
+// Products
+let products = [], myVote = null;
+
+async function loadProducts() {
+  const [, data] = await API.get('/products');
+  products = data.products || [];
+  const sel = document.getElementById('product-sel');
+  sel.innerHTML = products.map(p => `<option value="${p.id}" data-max="${p.max_qty}">${p.emoji} ${p.name} (max ${p.max_qty})</option>`).join('');
+  updateQtyMax();
+  updatePreview();
+}
+
+async function loadMyVote() {
+  const [status, data] = await API.get('/vote/me');
+  if (status === 200 && data) {
+    myVote = data;
+    showOrderedState();
+  } else {
+    myVote = null;
+    document.getElementById('order-form').style.display = '';
+    document.getElementById('order-status').innerHTML = '';
+  }
+}
+
+function showOrderedState() {
+  document.getElementById('order-form').style.display = 'none';
+  document.getElementById('order-status').innerHTML = `
+    <div class="order-preview"><span class="text-muted">Your order today:</span>
+    <span class="order-badge">${myVote.qty} ${myVote.product_emoji} ${myVote.product_name}</span></div>
+    <div class="alert alert-ok">✅ Order placed for today!</div>`;
+}
+
+function updateQtyMax() {
+  const sel = document.getElementById('product-sel');
+  const opt = sel.selectedOptions[0];
+  const max = opt ? parseInt(opt.dataset.max) : 99;
+  const qtyEl = document.getElementById('qty');
+  qtyEl.max = max;
+  if (parseInt(qtyEl.value) > max) qtyEl.value = max;
+}
+
+function updatePreview() {
+  const sel = document.getElementById('product-sel');
+  const opt = sel.selectedOptions[0];
+  if (!opt) return;
+  const qty = document.getElementById('qty').value;
+  const badge = document.getElementById('order-preview-badge');
+  badge.textContent = `${qty} ${opt.textContent.split(' ')[0]}`;
+  document.getElementById('order-preview').style.display = 'flex';
+}
+
+document.getElementById('product-sel').addEventListener('change', () => { updateQtyMax(); updatePreview(); });
+document.getElementById('qty').addEventListener('input', updatePreview);
+document.getElementById('qty-dec').addEventListener('click', () => {
+  const el = document.getElementById('qty');
+  if (parseInt(el.value) > 1) { el.value = parseInt(el.value) - 1; updatePreview(); }
+});
+document.getElementById('qty-inc').addEventListener('click', () => {
+  const el = document.getElementById('qty');
+  const max = parseInt(el.max) || 99;
+  if (parseInt(el.value) < max) { el.value = parseInt(el.value) + 1; updatePreview(); }
+});
+
+document.getElementById('place-btn').addEventListener('click', async () => {
+  const sel = document.getElementById('product-sel');
+  const productId = sel.value;
+  const qty = parseInt(document.getElementById('qty').value);
+  if (!productId) return;
+  const btn = document.getElementById('place-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  const [status, data] = await API.post('/vote', { product_id: productId, qty });
+  btn.disabled = false; btn.textContent = 'PLACE ORDER';
+  if (status === 201) { await loadMyVote(); Toast.ok('Order placed!'); }
+  else if (status === 409) { Toast.warn("You've already ordered today!"); await loadMyVote(); }
+  else Toast.err(data.detail || 'Something went wrong.');
+});
+
+// ── Chat WebSocket ────────────────────────────────────────────────────────────
+let chatWs = null;
+const chatBox = document.getElementById('chat-box');
+
+function appendMsg(msg) {
+  const empty = chatBox.querySelector('.chat-empty');
+  if (empty) empty.remove();
+  const div = document.createElement('div');
+  if (msg.name === 'System' || msg.name === 'system') {
+    div.className = 'chat-msg chat-sys';
+    div.textContent = msg.message;
+  } else {
+    div.className = 'chat-msg';
+    div.innerHTML = `<span class="chat-name">${msg.name}</span>: ${msg.message.replace(/</g,'&lt;').replace(/>/g,'&gt;')}`;
+  }
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function connectChat() {
+  chatWs = new WebSocket(`${wsBase()}/ws/chat?token=${sess.token}`);
+  chatWs.onmessage = e => { try { appendMsg(JSON.parse(e.data)); } catch {} };
+  chatWs.onerror = () => { document.getElementById('chat-err').textContent = 'Chat disconnected.'; document.getElementById('chat-err').style.display = ''; };
+  chatWs.onclose = () => setTimeout(connectChat, 3000);
+}
+
+function sendChat() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text || !chatWs || chatWs.readyState !== WebSocket.OPEN) return;
+  chatWs.send(JSON.stringify({ message: text }));
+  input.value = '';
+}
+
+document.getElementById('chat-send').addEventListener('click', sendChat);
+document.getElementById('chat-input').addEventListener('keydown', e => e.key === 'Enter' && sendChat());
+
+// ── Votes WebSocket ───────────────────────────────────────────────────────────
+let votesWs = null;
+
+function connectVotes() {
+  votesWs = new WebSocket(`${wsBase()}/ws/votes?token=${sess.token}`);
+  votesWs.onmessage = e => {
+    try {
+      const data = JSON.parse(e.data);
+      updateTotals(data);
+    } catch {}
+  };
+  votesWs.onclose = () => setTimeout(connectVotes, 3000);
+  votesWs.onerror = () => { document.getElementById('votes-err').style.display = ''; document.getElementById('votes-err').textContent = 'Live updates disconnected.'; };
+}
+
+function updateTotals(data) {
+  const totals = data.totals || {};
+  const orders = data.orders || [];
+  const orderCount = data.order_count ?? orders.length;
+
+  const metrics = Object.entries(totals).map(([name, info]) => ({
+    label: `${typeof info === 'object' ? info.emoji : ''} ${name}`,
+    value: typeof info === 'object' ? info.total : info,
+  }));
+  metrics.push({ label: '👥 Total Orders', value: orderCount });
+  renderMetrics('totals-metrics', metrics);
+
+  renderTable('totals-tbody', orders, [
+    r => r.name,
+    r => `${r.product_emoji || '☕'} ${r.product_name || ''} ×${r.qty || 1}`,
+  ]);
+}
+
+// Init
+loadProducts();
+loadMyVote();
+connectChat();
+connectVotes();
+</script>
+</body>
+</html>

@@ -1,12 +1,16 @@
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from src.teaorcoffee.core.database import db
 from src.teaorcoffee.core.config import settings
 from src.teaorcoffee.core.init_db import initialize_database
 from src.teaorcoffee.routes import health, votes, admin, hr, websocket, chat, auth, stats
 from src.teaorcoffee.routes import office_admin, distributor, products
+
+_FRONTEND = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "frontend")
 
 
 @asynccontextmanager
@@ -26,7 +30,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1|192\.168\.1\.\d+)(:\d+)?|https://.*\.(netlify\.app|streamlit\.app|streamlitapp\.com)",
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1|192\.168\.1\.\d+)(:\d+)?|https://.*\.(netlify\.app|streamlit\.app|streamlitapp\.com|render\.com|railway\.app|fly\.dev|onrender\.com)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -43,3 +47,6 @@ app.include_router(distributor.router)
 app.include_router(products.router)
 app.include_router(websocket.router)
 app.include_router(chat.router)
+
+if os.path.isdir(_FRONTEND):
+    app.mount("/", StaticFiles(directory=_FRONTEND, html=True), name="frontend")

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HR Panel — Tea or Coffee</title>
+<link rel="stylesheet" href="/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div id="toasts"></div>
+
+<div class="topbar">
+  <div class="topbar-title">👔 HR Panel <span class="office-tag" id="office-tag"></span></div>
+  <div class="topbar-right">
+    <button class="btn btn-sm" id="back-btn">← Orders</button>
+    <button class="btn btn-sm" id="theme-btn"></button>
+    <button class="btn btn-sm btn-danger" id="logout-btn">Logout</button>
+  </div>
+</div>
+
+<div class="page">
+  <div class="tabs" id="tabs">
+    <button class="tab-btn">📋 Orders</button>
+    <button class="tab-btn">📊 Stats</button>
+  </div>
+
+  <!-- ORDERS -->
+  <div class="tab-pane" id="tab-orders">
+    <div class="flex-between mb16">
+      <h3 style="margin:0">Today's Orders</h3>
+      <button class="btn btn-sm" id="refresh-btn">🔄 Refresh</button>
+    </div>
+    <div class="metrics" id="order-metrics"></div>
+    <div class="table-wrap mb16">
+      <table><thead><tr><th>Name</th><th>Order</th><th></th></tr></thead><tbody id="orders-tbody"></tbody></table>
+    </div>
+    <hr>
+    <div class="card mt16">
+      <h4>Place Order for User</h4>
+      <div class="form-row mb8">
+        <input id="po-name" placeholder="User name…">
+        <select id="po-prod"></select>
+      </div>
+      <div class="form-group">
+        <div class="qty-wrap">
+          <button id="po-dec">−</button>
+          <input type="number" id="po-qty" value="1" min="1" max="99">
+          <button id="po-inc">+</button>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-full" id="po-btn">PLACE ORDER</button>
+      <div id="po-msg"></div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="tab-pane" id="tab-stats">
+    <div class="card mb16">
+      <div class="grid-4 mb8">
+        <button class="btn btn-sm" id="r-week">This Week</button>
+        <button class="btn btn-sm" id="r-7d">Last 7 Days</button>
+        <button class="btn btn-sm" id="r-month">This Month</button>
+        <button class="btn btn-sm" id="r-lmonth">Last Month</button>
+      </div>
+      <div class="form-row">
+        <div><label class="form-label">From</label><input type="date" id="r-from"></div>
+        <div><label class="form-label">To</label><input type="date" id="r-to"></div>
+      </div>
+    </div>
+    <div class="metrics" id="stats-metrics"></div>
+    <div class="card mb16"><div class="chart-wrap"><canvas id="chart-daily"></canvas></div></div>
+
+    <div class="card mb16">
+      <h3>Who Ordered on a Specific Day</h3>
+      <div class="form-row mb8">
+        <input type="date" id="bd-day">
+        <button class="btn btn-primary" id="bd-load">Load Breakdown</button>
+      </div>
+      <div id="bd-result"></div>
+    </div>
+
+    <div class="card">
+      <h3>User Stats</h3>
+      <div class="form-group"><select id="user-sel"></select></div>
+      <div class="grid-4 mb8">
+        <button class="btn btn-sm" id="u-week">This Week</button>
+        <button class="btn btn-sm" id="u-7d">Last 7 Days</button>
+        <button class="btn btn-sm" id="u-month">This Month</button>
+        <button class="btn btn-sm" id="u-lmonth">Last Month</button>
+      </div>
+      <div class="form-row mb16">
+        <div><label class="form-label">From</label><input type="date" id="u-from"></div>
+        <div><label class="form-label">To</label><input type="date" id="u-to"></div>
+      </div>
+      <div class="metrics" id="user-metrics"></div>
+      <div class="chart-wrap"><canvas id="chart-user"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+<script>
+const sess = Auth.require(['main_admin','office_admin','office_hr']);
+if (!sess) throw new Error('redirect');
+Theme.init();
+document.getElementById('office-tag').textContent = sess.office_name || 'Office';
+document.getElementById('back-btn').onclick = () => location.href = '/order.html';
+document.getElementById('logout-btn').onclick = () => Auth.clearSession();
+initTabs('tabs');
+
+let products = [];
+
+// Orders tab
+async function loadOrders() {
+  const [status, data] = await API.get('/hr/orders');
+  if (status === 403) { Toast.err('Access denied.'); return; }
+  if (status !== 200) { Toast.err(data.detail || 'Failed.'); return; }
+  const totals = data.totals || {};
+  const orders = data.orders || [];
+  const count = data.order_count ?? orders.length;
+  const metrics = Object.entries(totals).map(([n, i]) => ({ label: `${typeof i==='object'?i.emoji:''} ${n}`, value: typeof i==='object'?i.total:i }));
+  metrics.push({ label: '👥 Orders', value: count });
+  renderMetrics('order-metrics', metrics);
+  const tbody = document.getElementById('orders-tbody');
+  tbody.innerHTML = orders.map(o =>
+    `<tr><td><strong>${o.name}</strong></td><td>${o.product_emoji||'☕'} ${o.product_name||''} ×${o.qty||1}</td>
+     <td><button class="btn btn-sm btn-danger" onclick="removeOrder('${o.name}')">Remove</button></td></tr>`
+  ).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--muted)">No orders today.</td></tr>';
+}
+
+async function removeOrder(name) {
+  const [status, data] = await API.post('/hr/remove-order', { name, password: '' });
+  if (status === 200) { Toast.ok(`Removed ${name}'s order.`); loadOrders(); }
+  else Toast.err(data.detail || 'Error');
+}
+
+document.getElementById('refresh-btn').onclick = loadOrders;
+
+async function loadProducts() {
+  const [, data] = await API.get('/products');
+  products = data.products || [];
+  const sel = document.getElementById('po-prod');
+  sel.innerHTML = products.map(p => `<option value="${p.id}" data-max="${p.max_qty}">${p.emoji} ${p.name}</option>`).join('');
+}
+
+document.getElementById('po-dec').onclick = () => { const e = document.getElementById('po-qty'); if (parseInt(e.value) > 1) e.value--; };
+document.getElementById('po-inc').onclick = () => {
+  const e = document.getElementById('po-qty');
+  const sel = document.getElementById('po-prod');
+  const max = parseInt(sel.selectedOptions[0]?.dataset.max || 99);
+  if (parseInt(e.value) < max) e.value++;
+};
+
+document.getElementById('po-btn').onclick = async () => {
+  const name = document.getElementById('po-name').value.trim();
+  const prodSel = document.getElementById('po-prod');
+  const productId = prodSel.value;
+  const qty = parseInt(document.getElementById('po-qty').value);
+  const msgEl = document.getElementById('po-msg');
+  if (!name) { msgEl.innerHTML = '<div class="alert alert-warn">Enter user name.</div>'; return; }
+  const [status, data] = await API.post('/hr/place-order', { name, password: '', product_id: productId, qty });
+  if (status === 200 && data.success) { msgEl.innerHTML = `<div class="alert alert-ok">${data.message}</div>`; loadOrders(); }
+  else if (status === 409) msgEl.innerHTML = `<div class="alert alert-warn">${data.detail || 'Already ordered.'}</div>`;
+  else msgEl.innerHTML = `<div class="alert alert-err">${data.detail || 'Error.'}</div>`;
+  setTimeout(() => { msgEl.innerHTML = ''; }, 4000);
+};
+
+// Stats tab
+const today = D.today();
+document.getElementById('bd-day').value = today;
+document.getElementById('bd-day').max = today;
+
+async function loadDailyStats(start, end) {
+  const [status, data] = await API.get(`/hr/stats/daily?start=${start}&end=${end}`);
+  if (status !== 200) { Toast.err(data.detail || 'Failed.'); return; }
+  const days = data.days || [];
+  renderMetrics('stats-metrics', [
+    { label: '🍵 Tea', value: days.reduce((s,d) => s+(d.tea||0), 0) },
+    { label: '☕ Coffee', value: days.reduce((s,d) => s+(d.coffee||0), 0) },
+    { label: '📅 Active Days', value: days.length },
+  ]);
+  teaCoffeeChart('chart-daily', days, 'bar');
+}
+statsDateRange('r', loadDailyStats);
+
+document.getElementById('bd-load').onclick = async () => {
+  const day = document.getElementById('bd-day').value;
+  const [status, data] = await API.get(`/hr/stats/users/day?date=${day}`);
+  const el = document.getElementById('bd-result');
+  if (status !== 200) { el.innerHTML = `<div class="alert alert-err">${data.detail||'Failed.'}</div>`; return; }
+  const orders = data.orders || [];
+  el.innerHTML = `<p class="text-muted mb8"><strong>${data.date}</strong> — 🍵 ${data.total_tea} | ☕ ${data.total_coffee}</p>
+    <div class="table-wrap"><table><thead><tr><th>Name</th><th>Product</th><th>Qty</th></tr></thead>
+    <tbody>${orders.map(o=>`<tr><td>${o.name}</td><td>${o.product_name||''}</td><td>${o.qty}</td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;color:var(--muted)">No orders</td></tr>'}
+    </tbody></table></div>`;
+};
+
+let selectedUser = '';
+async function initUserSel() {
+  const [status, data] = await API.get('/hr/stats/user-names');
+  const names = (status === 200 ? data.names : []) || [];
+  const sel = document.getElementById('user-sel');
+  sel.innerHTML = names.map(n => `<option>${n}</option>`).join('');
+  if (names[0]) { selectedUser = names[0]; loadUserStats(); }
+  sel.addEventListener('change', () => { selectedUser = sel.value; loadUserStats(document.getElementById('u-from').value, document.getElementById('u-to').value); });
+}
+
+async function loadUserStats(start, end) {
+  if (!start) start = D.addDays(today, -6);
+  if (!end) end = today;
+  if (!selectedUser) return;
+  const [status, data] = await API.get(`/hr/stats/user?name=${encodeURIComponent(selectedUser)}&start=${start}&end=${end}`);
+  if (status !== 200) return;
+  renderMetrics('user-metrics', [
+    { label: '🍵 Tea', value: data.total_tea || 0 },
+    { label: '☕ Coffee', value: data.total_coffee || 0 },
+    { label: '📅 Days', value: data.order_days || 0 },
+  ]);
+  teaCoffeeChart('chart-user', data.days || [], 'bar');
+}
+
+document.getElementById('u-from').value = D.addDays(today, -6);
+document.getElementById('u-to').value = today;
+function setUserRange(s, e) { document.getElementById('u-from').value = s; document.getElementById('u-to').value = e; loadUserStats(s, e); }
+document.getElementById('u-week').onclick = () => setUserRange(D.weekStart(), today);
+document.getElementById('u-7d').onclick = () => setUserRange(D.addDays(today, -6), today);
+document.getElementById('u-month').onclick = () => setUserRange(D.monthStart(), today);
+document.getElementById('u-lmonth').onclick = () => { const r = D.lastMonth(); setUserRange(r.start, r.end); };
+document.getElementById('u-from').addEventListener('change', e => loadUserStats(e.target.value, document.getElementById('u-to').value));
+document.getElementById('u-to').addEventListener('change', e => loadUserStats(document.getElementById('u-from').value, e.target.value));
+
+loadOrders();
+loadProducts();
+initUserSel();
+</script>
+</body>
+</html>

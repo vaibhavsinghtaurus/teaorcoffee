@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tea or Coffee — Sign In</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div id="toasts"></div>
+<div class="login-wrap">
+  <div class="login-card card">
+    <div class="login-logo">☕</div>
+    <div class="login-title">Tea or Coffee</div>
+    <div class="login-sub">Sign in to place your order</div>
+
+    <div class="form-group"><input id="name" placeholder="Your name or nickname…" autocomplete="username"></div>
+    <div class="form-group"><input id="password" type="password" placeholder="Password…" autocomplete="current-password"></div>
+    <div id="msg"></div>
+    <button class="btn btn-primary btn-full mt8" id="sign-in">SIGN IN</button>
+
+    <div style="text-align:right;margin-top:12px">
+      <button class="btn btn-sm" id="theme-btn"></button>
+    </div>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+<script>
+Theme.init();
+
+// If already logged in redirect
+if (Auth.getToken()) {
+  const user = Auth.getUser();
+  const role = user.role;
+  if (role === 'main_admin') location.href = '/admin.html';
+  else if (role === 'office_admin') location.href = '/office_admin.html';
+  else if (role === 'office_hr') location.href = '/hr.html';
+  else if (['company_admin','distributor_staff'].includes(role)) location.href = '/distributor.html';
+  else location.href = '/order.html';
+}
+
+const nameEl = document.getElementById('name');
+const pwEl = document.getElementById('password');
+const msgEl = document.getElementById('msg');
+const btn = document.getElementById('sign-in');
+
+async function doLogin() {
+  const name = nameEl.value.trim();
+  if (!name) { msgEl.innerHTML = '<div class="alert alert-err">Please enter your name.</div>'; return; }
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Signing in…';
+  msgEl.innerHTML = '';
+
+  const body = { name };
+  const pw = pwEl.value.trim();
+  if (pw) body.password = pw;
+
+  const [status, data] = await API.post('/login', body);
+  btn.disabled = false; btn.textContent = 'SIGN IN';
+
+  if (status === 0) { msgEl.innerHTML = `<div class="alert alert-err">Cannot reach server: ${data.detail}</div>`; return; }
+
+  if (data.success) {
+    Auth.setSession(data);
+    const role = data.role;
+    if (role === 'main_admin') location.href = '/admin.html';
+    else if (role === 'office_admin') location.href = '/office_admin.html';
+    else if (role === 'office_hr') location.href = '/hr.html';
+    else if (['company_admin','distributor_staff'].includes(role)) location.href = '/distributor.html';
+    else location.href = '/order.html';
+  } else if (data.password_required) {
+    msgEl.innerHTML = '<div class="alert alert-warn">Password required — please enter your password.</div>';
+    pwEl.focus();
+  } else {
+    msgEl.innerHTML = `<div class="alert alert-err">${data.message || data.detail || 'Login failed.'}</div>`;
+  }
+}
+
+btn.addEventListener('click', doLogin);
+[nameEl, pwEl].forEach(el => el.addEventListener('keydown', e => e.key === 'Enter' && doLogin()));
+nameEl.focus();
+</script>
+</body>
+</html>

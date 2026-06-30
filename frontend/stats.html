@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stats — Tea or Coffee</title>
+<link rel="stylesheet" href="/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div id="toasts"></div>
+
+<div class="topbar">
+  <div class="topbar-title">📊 Stats <span class="office-tag" id="office-tag"></span></div>
+  <div class="topbar-right">
+    <button class="btn btn-sm" id="back-btn">← Orders</button>
+    <button class="btn btn-sm" id="theme-btn"></button>
+    <button class="btn btn-sm btn-danger" id="logout-btn">Logout</button>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- ── Daily range ── -->
+  <div class="card mb16">
+    <div class="grid-4 mb8" style="gap:8px">
+      <button class="btn btn-sm" id="r-week">This Week</button>
+      <button class="btn btn-sm" id="r-7d">Last 7 Days</button>
+      <button class="btn btn-sm" id="r-month">This Month</button>
+      <button class="btn btn-sm" id="r-lmonth">Last Month</button>
+    </div>
+    <div class="form-row">
+      <div><label class="form-label">From</label><input type="date" id="r-from" max="9999-12-31"></div>
+      <div><label class="form-label">To</label><input type="date" id="r-to" max="9999-12-31"></div>
+    </div>
+  </div>
+
+  <div class="metrics" id="daily-metrics"></div>
+
+  <div class="card mb16">
+    <h3>Daily Orders</h3>
+    <div class="tabs" id="daily-tabs-nav">
+      <button class="tab-btn">Bar Chart</button>
+      <button class="tab-btn">Line Chart</button>
+      <button class="tab-btn">Table</button>
+    </div>
+    <div id="daily-tab-bar" class="tab-pane active"><div class="chart-wrap"><canvas id="chart-daily-bar"></canvas></div></div>
+    <div id="daily-tab-line" class="tab-pane"><div class="chart-wrap"><canvas id="chart-daily-line"></canvas></div></div>
+    <div id="daily-tab-table" class="tab-pane">
+      <div class="table-wrap"><table><thead><tr><th>Date</th><th>Tea</th><th>Coffee</th></tr></thead><tbody id="daily-tbody"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- ── Day breakdown ── -->
+  <div class="card mb16">
+    <h3>Who Ordered on a Specific Day</h3>
+    <div class="form-row mb8">
+      <input type="date" id="bd-day" value="">
+      <button class="btn btn-primary" id="bd-load">Load Breakdown</button>
+    </div>
+    <div id="bd-result"></div>
+  </div>
+
+  <!-- ── User stats ── -->
+  <div class="card">
+    <h3>User Stats</h3>
+    <div class="form-group" id="user-sel-wrap">
+      <label class="form-label">Select User</label>
+      <select id="user-sel"></select>
+    </div>
+    <div class="grid-4 mb8" style="gap:8px">
+      <button class="btn btn-sm" id="u-week">This Week</button>
+      <button class="btn btn-sm" id="u-7d">Last 7 Days</button>
+      <button class="btn btn-sm" id="u-month">This Month</button>
+      <button class="btn btn-sm" id="u-lmonth">Last Month</button>
+    </div>
+    <div class="form-row mb16">
+      <div><label class="form-label">From</label><input type="date" id="u-from"></div>
+      <div><label class="form-label">To</label><input type="date" id="u-to"></div>
+    </div>
+    <div class="metrics" id="user-metrics"></div>
+    <div class="chart-wrap"><canvas id="chart-user"></canvas></div>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+<script>
+const sess = Auth.require();
+if (!sess) throw new Error('redirect');
+Theme.init();
+
+document.getElementById('office-tag').textContent = sess.office_name || 'Office';
+document.getElementById('back-btn').onclick = () => location.href = '/order.html';
+document.getElementById('logout-btn').onclick = () => Auth.clearSession();
+
+const MIN_DATE = '2026-01-01';
+const today = D.today();
+document.getElementById('bd-day').value = today;
+document.getElementById('bd-day').max = today;
+document.getElementById('bd-day').min = MIN_DATE;
+
+// Manual tab init for daily charts
+let currentDailyData = [];
+const dailyBtns = document.querySelectorAll('#daily-tabs-nav .tab-btn');
+const dailyPanes = [document.getElementById('daily-tab-bar'), document.getElementById('daily-tab-line'), document.getElementById('daily-tab-table')];
+dailyBtns.forEach((btn, i) => {
+  btn.onclick = () => {
+    dailyBtns.forEach(b => b.classList.remove('active'));
+    dailyPanes.forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    dailyPanes[i].classList.add('active');
+    if (i === 0) teaCoffeeChart('chart-daily-bar', currentDailyData, 'bar');
+    if (i === 1) teaCoffeeChart('chart-daily-line', currentDailyData, 'line');
+  };
+});
+dailyBtns[0].classList.add('active');
+dailyPanes[0].classList.add('active');
+
+async function loadDaily(start, end) {
+  const [status, data] = await API.get(`/stats/daily?start=${start}&end=${end}`);
+  if (status !== 200) { Toast.err(data.detail || 'Failed to load stats.'); return; }
+  currentDailyData = data.days || [];
+  const totalTea = currentDailyData.reduce((s, d) => s + (d.tea || 0), 0);
+  const totalCoffee = currentDailyData.reduce((s, d) => s + (d.coffee || 0), 0);
+  renderMetrics('daily-metrics', [
+    { label: '🍵 Tea', value: totalTea },
+    { label: '☕ Coffee', value: totalCoffee },
+    { label: '📅 Active Days', value: currentDailyData.length },
+  ]);
+  teaCoffeeChart('chart-daily-bar', currentDailyData, 'bar');
+  renderTable('daily-tbody', currentDailyData, [d => d.date, d => d.tea || 0, d => d.coffee || 0]);
+}
+
+statsDateRange('r', loadDaily);
+
+// Day breakdown
+document.getElementById('bd-load').addEventListener('click', async () => {
+  const day = document.getElementById('bd-day').value;
+  if (!day) return;
+  const [status, data] = await API.get(`/stats/users/day?date=${day}`);
+  const el = document.getElementById('bd-result');
+  if (status !== 200) { el.innerHTML = `<div class="alert alert-err">${data.detail || 'Failed.'}</div>`; return; }
+  const orders = data.orders || [];
+  el.innerHTML = `<p class="text-muted mb8"><strong>${data.date}</strong> — 🍵 ${data.total_tea} | ☕ ${data.total_coffee}</p>
+    <div class="table-wrap"><table><thead><tr><th>Name</th><th>Product</th><th>Qty</th></tr></thead>
+    <tbody>${orders.map(o => `<tr><td>${o.name}</td><td>${o.product_name || ''}</td><td>${o.qty}</td></tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--muted)">No orders</td></tr>'}
+    </tbody></table></div>`;
+});
+
+// User stats
+const elevated = ['main_admin','office_admin','office_hr'].includes(sess.role);
+let selectedUser = sess.username;
+
+async function initUserSel() {
+  if (!elevated) {
+    document.getElementById('user-sel-wrap').innerHTML = `<p class="text-muted">Showing stats for <strong>${sess.username}</strong></p>`;
+    return;
+  }
+  const [status, data] = await API.get('/stats/user-names');
+  const names = (status === 200 ? data.names : []) || [];
+  const sel = document.getElementById('user-sel');
+  sel.innerHTML = names.map(n => `<option>${n}</option>`).join('');
+  if (names.length) { selectedUser = names[0]; loadUserStats(); }
+  sel.addEventListener('change', () => { selectedUser = sel.value; loadUserStats(document.getElementById('u-from').value, document.getElementById('u-to').value); });
+}
+
+async function loadUserStats(start, end) {
+  if (!start) start = D.addDays(D.today(), -6);
+  if (!end) end = D.today();
+  if (!selectedUser) return;
+  const [status, data] = await API.get(`/stats/user?name=${encodeURIComponent(selectedUser)}&start=${start}&end=${end}`);
+  if (status !== 200) { Toast.err(data.detail || 'Failed.'); return; }
+  renderMetrics('user-metrics', [
+    { label: '🍵 Tea', value: data.total_tea || 0 },
+    { label: '☕ Coffee', value: data.total_coffee || 0 },
+    { label: '📅 Days Ordered', value: data.order_days || 0 },
+  ]);
+  teaCoffeeChart('chart-user', data.days || [], 'bar');
+}
+
+const uToday = D.today();
+document.getElementById('u-from').value = D.addDays(uToday, -6);
+document.getElementById('u-to').value = uToday;
+
+function setUserRange(s, e) {
+  document.getElementById('u-from').value = s;
+  document.getElementById('u-to').value = e;
+  loadUserStats(s, e);
+}
+document.getElementById('u-week').onclick = () => setUserRange(D.weekStart(), uToday);
+document.getElementById('u-7d').onclick = () => setUserRange(D.addDays(uToday, -6), uToday);
+document.getElementById('u-month').onclick = () => setUserRange(D.monthStart(), uToday);
+document.getElementById('u-lmonth').onclick = () => { const r = D.lastMonth(); setUserRange(r.start, r.end); };
+document.getElementById('u-from').addEventListener('change', e => loadUserStats(e.target.value, document.getElementById('u-to').value));
+document.getElementById('u-to').addEventListener('change', e => loadUserStats(document.getElementById('u-from').value, e.target.value));
+
+initUserSel();
+if (!elevated) loadUserStats();
+</script>
+</body>
+</html>
