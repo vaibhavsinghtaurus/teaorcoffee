@@ -8,7 +8,6 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "streamlit (>=1.40.0,<2.0.0)",
     "websockets (>=13.0,<15.0)",
     "fastapi[standard] (>=0.138.2,<0.139.0)",
     "uvicorn[standard] (>=0.40.0,<0.41.0)",
