@@ -14,6 +14,11 @@ async def login(request: Request):
     return templates.TemplateResponse(request, "index.html")
 
 
+@router.get("/register", include_in_schema=False)
+async def register(request: Request):
+    return templates.TemplateResponse(request, "register.html")
+
+
 @router.get("/order", include_in_schema=False)
 async def order(request: Request):
     return templates.TemplateResponse(request, "order.html")
@@ -29,9 +34,9 @@ async def hr(request: Request):
     return templates.TemplateResponse(request, "hr.html")
 
 
-@router.get("/office-admin", include_in_schema=False)
-async def office_admin(request: Request):
-    return templates.TemplateResponse(request, "office_admin.html")
+@router.get("/company-admin", include_in_schema=False)
+async def company_admin(request: Request):
+    return templates.TemplateResponse(request, "company_admin.html")
 
 
 @router.get("/distributor", include_in_schema=False)

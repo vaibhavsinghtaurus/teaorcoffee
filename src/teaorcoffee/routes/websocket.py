@@ -12,8 +12,8 @@ async def votes_socket(websocket: WebSocket):
     await websocket.accept()
     try:
         user = await get_current_user_from_websocket(websocket)
-        connections[websocket] = user.office_id or ""
-        await websocket.send_json(await _build_payload(user.office_id))
+        connections[websocket] = user.company_id or ""
+        await websocket.send_json(await _build_payload(user.company_id))
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:

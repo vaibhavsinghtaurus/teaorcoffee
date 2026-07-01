@@ -1,6 +1,8 @@
 # Tea or Coffee
 
-Multi-office beverage ordering system with real-time updates, role-based access, and a distributor hierarchy.
+A multi-tenant beverage ordering system: **companies** order tea/coffee/etc.
+from a **distributor**, with real-time updates, DB-driven roles, and no
+hardcoded admin/HR names.
 
 ---
 
@@ -11,7 +13,7 @@ Multi-office beverage ordering system with real-time updates, role-based access,
 | Backend API | FastAPI + Motor (async MongoDB) |
 | Frontend | Plain HTML / CSS / JS (served by FastAPI) |
 | Database | MongoDB |
-| Real-time | WebSocket (per-office broadcast) |
+| Real-time | WebSocket (per-company broadcast) |
 | Auth | bcrypt passwords + session tokens, stored in `localStorage` |
 
 FastAPI serves both the API and the static frontend from the same process. No separate frontend server is needed.
@@ -33,16 +35,46 @@ TOC_MONGODB_URI=mongodb+srv://user:password@cluster.mongodb.net/teaorcoffee
 
 ---
 
+## Companies & Modes
+
+Every tenant is a **company**, operating in one of two modes:
+
+- **`company` mode** — orders products (e.g. Implevision). Has `employee`,
+  `hr`, `manager`, and `company_admin` members (multiple of each allowed),
+  and buys from exactly one `distributor`.
+- **`distributor` mode** — supplies products with prices to buyer companies
+  (e.g. Zaff). Has `manager`, `hr`, `distributor_boy`, and `company_admin`
+  members. Adds/prices its own product catalog; buyer companies choose which
+  of those products to enable for their own employees.
+
+Anyone can self-register a new company (either mode) from the login page —
+**no approval step**. A super admin can mark any company inoperative
+(soft delete — blocks login for its members, keeps all historical data).
+
 ## Roles
 
-| Role | Who | Access |
+| Role | Scope | Access |
 |---|---|---|
-| `main_admin` | Global superuser (default: "Vaibhav") | Everything — all offices, all users, all products |
-| `office_admin` | Per-office admin | Manage one office: orders, users, names, products, stats |
-| `office_hr` | Per-office HR | View/manage orders and stats for their office |
-| `user` | Regular staff | Place one order per day |
-| `company_admin` | Distributor company admin | Manage their company's staff and positions; view orders |
-| `distributor_staff` | Delivery staff | View today's orders for the office they serve |
+| `super_admin` | global | everything; only role that can deactivate a company or see cross-company stats |
+| `company_admin` | own company | full control of their company (staff, distributor selection, product catalog, orders, stats) |
+| `manager` | own company | same as `company_admin`, minus deactivating/reconfiguring the company itself |
+| `hr` | own company | place/edit/remove today's (and scheduled) orders for employees, view stats |
+| `employee` | own company | place, edit, schedule, and cancel their own orders |
+| `distributor_boy` | own distributor | view the distributor's order dashboard and mark deliveries |
+
+## Ordering
+
+- Employees pick from their company's **enabled** products (chosen by their
+  `company_admin`/`manager` from the distributor's catalog).
+- Orders can be scheduled for a future date, and edited/cancelled any time
+  before they're delivered.
+- Only one **pending** order per person per day — once the distributor marks
+  it delivered, that person is free to place a new one the same day.
+- Stats pages only count **delivered** orders (pending ones aren't
+  "consumption" yet). The distributor's own dashboard shows delivered vs.
+  pending separately.
+- Product prices are versioned — a distributor can update a price at any
+  time, but past prices are kept in history and never deleted.
 
 ---
 
@@ -85,10 +117,17 @@ docker run -p 8000:8000 \
 
 ## First-Time Setup
 
-On first startup, the backend seeds the database:
-- Creates the **Implevision** office
-- Seeds default products: Tea 🍵 (max 2) and Coffee ☕ (max 1)
-- Seeds the allowed names list
-- Migrates any old `{tea, coffee}` vote documents to the new flat schema
+On startup, the backend seeds/migrates the database automatically and
+idempotently:
+- Creates **Zaff** (distributor) with Tea 🍵 and Coffee ☕ at ₹10 each
+- Creates **Implevision** (company), buying from Zaff, with Tea/Coffee enabled
+- Seeds identities: Vaibhav → `super_admin`, Jimish → `manager`,
+  Ranjeet → `hr`, everyone else → `employee`
+- Migrates any pre-existing `offices`/`distributor_companies`/`products`
+  documents into the unified `companies`/`distributor_products` schema,
+  preserving IDs and historical order data
 
-On first visit to the app, a **setup screen** appears. Enter the name of a user already in the allowed list and choose a password — this creates the `main_admin` account. After setup, the normal login page is shown. Roles for all other users (office_admin, office_hr, etc.) are assigned via the Admin panel.
+A **setup screen** appears on first visit only if no super admin exists yet
+(e.g. a completely empty database) — it lets you create one directly by
+name and password. Otherwise, just sign in, or register a new company from
+the login page.

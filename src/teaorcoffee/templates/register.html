@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Register Company — Tea or Coffee</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="toasts"></div>
+<div class="login-wrap">
+  <div class="card" style="width:100%;max-width:560px">
+    <div class="login-logo">☕</div>
+    <div class="login-title">Register Your Company</div>
+    <div class="login-sub">No approval needed — you're set up immediately.</div>
+
+    <div class="form-group">
+      <label class="form-label">Mode</label>
+      <select id="mode-sel">
+        <option value="company">Company (order tea/coffee from a distributor)</option>
+        <option value="distributor">Distributor (supply products to companies)</option>
+      </select>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Company Name</label>
+        <input id="reg-name" placeholder="e.g. Acme Corp">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Slug</label>
+        <input id="reg-slug" placeholder="acme-corp">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Branch Address</label>
+      <input id="reg-address" placeholder="e.g. 611 K10 Grand, Subhanpura, Vadodara">
+      <p class="text-muted" style="margin-top:4px">Multiple branches can share the same company name — the address is what tells them apart.</p>
+    </div>
+
+    <div class="form-group" id="distributor-pick-group">
+      <label class="form-label">Distributor</label>
+      <select id="distributor-sel"><option value="">Loading distributors…</option></select>
+    </div>
+
+    <div class="form-group" id="catalog-group" style="display:none">
+      <label class="form-label">Products to enable for your employees</label>
+      <div id="catalog-list" class="card" style="padding:10px"></div>
+    </div>
+
+    <hr class="mt16 mb16">
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Admin Name (that's you)</label>
+        <input id="reg-admin-name" placeholder="Your full name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Admin Password</label>
+        <input id="reg-admin-pw" type="password" placeholder="Choose a password">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Manager Name(s) <span class="text-muted">(comma-separated, optional)</span></label>
+      <input id="reg-managers" placeholder="e.g. Jimish">
+    </div>
+    <div class="form-group">
+      <label class="form-label">HR Name(s) <span class="text-muted">(comma-separated, optional)</span></label>
+      <input id="reg-hrs" placeholder="e.g. Ranjeet">
+    </div>
+    <div class="form-group">
+      <label class="form-label" id="staff-label">Employee Name(s) <span class="text-muted">(comma-separated, optional)</span></label>
+      <input id="reg-staff" placeholder="e.g. Sourabh, Nitin">
+    </div>
+
+    <div id="reg-msg"></div>
+    <button class="btn btn-primary btn-full mt8" id="reg-submit">REGISTER</button>
+
+    <div style="text-align:center;margin-top:16px">
+      <a href="/" style="color:var(--muted);text-decoration:none">← Back to sign in</a>
+    </div>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+<script>
+Theme.init();
+
+const modeSel = document.getElementById('mode-sel');
+const distGroup = document.getElementById('distributor-pick-group');
+const distSel = document.getElementById('distributor-sel');
+const catalogGroup = document.getElementById('catalog-group');
+const catalogList = document.getElementById('catalog-list');
+const staffLabel = document.getElementById('staff-label');
+
+document.getElementById('reg-name').addEventListener('input', (e) => {
+  document.getElementById('reg-slug').value = e.target.value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+});
+
+function updateModeUI() {
+  const isCompany = modeSel.value === 'company';
+  distGroup.style.display = isCompany ? '' : 'none';
+  catalogGroup.style.display = isCompany && distSel.value ? '' : 'none';
+  staffLabel.innerHTML = isCompany
+    ? 'Employee Name(s) <span class="text-muted">(comma-separated, optional)</span>'
+    : 'Distributor Boy Name(s) <span class="text-muted">(comma-separated, optional)</span>';
+}
+modeSel.addEventListener('change', updateModeUI);
+
+async function loadDistributors() {
+  const [s, d] = await API.publicGet('/distributors/active');
+  if (s !== 200 || !d.companies || !d.companies.length) {
+    distSel.innerHTML = '<option value="">No active distributors yet</option>';
+    return;
+  }
+  distSel.innerHTML = '<option value="">Select a distributor…</option>' +
+    d.companies.map(c => `<option value="${c.id}">${c.name}${c.address ? ' — ' + c.address : ''}</option>`).join('');
+}
+
+async function loadCatalog(distributorId) {
+  if (!distributorId) { catalogGroup.style.display = 'none'; return; }
+  const [s, d] = await API.publicGet(`/distributors/${distributorId}/products`);
+  if (s !== 200 || !d.products) { catalogList.innerHTML = '<div class="text-muted">Could not load products.</div>'; return; }
+  catalogList.innerHTML = d.products.filter(p => p.is_active).map(p => `
+    <label style="display:flex;align-items:center;gap:8px;padding:6px 0">
+      <input type="checkbox" class="catalog-cb" value="${p.id}" checked>
+      <span>${p.emoji} ${p.name} — ₹${p.current_price}</span>
+    </label>
+  `).join('') || '<div class="text-muted">This distributor has no products yet.</div>';
+  catalogGroup.style.display = '';
+}
+
+distSel.addEventListener('change', () => loadCatalog(distSel.value));
+
+document.getElementById('reg-submit').onclick = async () => {
+  const msg = document.getElementById('reg-msg');
+  const mode = modeSel.value;
+  const name = document.getElementById('reg-name').value.trim();
+  const slug = document.getElementById('reg-slug').value.trim();
+  const address = document.getElementById('reg-address').value.trim();
+  const admin_name = document.getElementById('reg-admin-name').value.trim();
+  const admin_password = document.getElementById('reg-admin-pw').value;
+  const manager_names = document.getElementById('reg-managers').value.split(',').map(s => s.trim()).filter(Boolean);
+  const hr_names = document.getElementById('reg-hrs').value.split(',').map(s => s.trim()).filter(Boolean);
+  const staff_names = document.getElementById('reg-staff').value.split(',').map(s => s.trim()).filter(Boolean);
+
+  if (!name || !slug || !address || !admin_name || !admin_password) {
+    msg.innerHTML = '<div class="alert alert-warn">Company name, slug, address, admin name, and password are required.</div>';
+    return;
+  }
+  const body = { name, slug, address, mode, admin_name, admin_password, manager_names, hr_names, staff_names };
+  if (mode === 'company') {
+    if (!distSel.value) { msg.innerHTML = '<div class="alert alert-warn">Please select a distributor.</div>'; return; }
+    body.distributor_id = distSel.value;
+    body.enabled_product_ids = Array.from(document.querySelectorAll('.catalog-cb:checked')).map(cb => cb.value);
+  }
+
+  const btn = document.getElementById('reg-submit');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  const [s, d] = await API.publicPost('/register-company', body);
+  btn.disabled = false; btn.textContent = 'REGISTER';
+
+  if (s === 200 && d.success) {
+    msg.innerHTML = `<div class="alert alert-ok">${d.message}</div>`;
+    setTimeout(() => location.href = '/', 1500);
+  } else {
+    msg.innerHTML = `<div class="alert alert-err">${d.detail || 'Registration failed.'}</div>`;
+  }
+};
+
+updateModeUI();
+loadDistributors();
+</script>
+</body>
+</html>

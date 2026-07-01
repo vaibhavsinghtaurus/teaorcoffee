@@ -18,14 +18,14 @@ async def get_stats_daily(start: str, end: str, user: AuthUser = Depends(get_cur
         start = _MIN_DATE
     if end < start:
         raise HTTPException(400, "end must be >= start")
-    rows = await db.get_daily_totals_range(start, end, user.office_id)
+    rows = await db.get_daily_totals_range(start, end, user.company_id)
     return StatsRangeResponse(days=[DailyTotals(date=r["date"], tea=r["tea"], coffee=r["coffee"],
                                                  products=r.get("products", {})) for r in rows])
 
 
 @router.get("/stats/users/day", response_model=UserOrdersForDateResponse)
 async def get_stats_users_day(date: str, user: AuthUser = Depends(get_current_user)):
-    rows = await db.get_user_orders_for_date(date, user.office_id)
+    rows = await db.get_user_orders_for_date(date, user.company_id)
     orders = [UserOrderDetail(name=r["name"], tea=r["tea"], coffee=r["coffee"],
                               product_name=r.get("product_name", ""), qty=r.get("qty", 0)) for r in rows]
     totals: dict = {}
@@ -40,7 +40,7 @@ async def get_stats_users_day(date: str, user: AuthUser = Depends(get_current_us
 
 @router.get("/stats/user-names", response_model=UserNamesResponse)
 async def get_stat_user_names(user: AuthUser = Depends(get_current_user)):
-    return UserNamesResponse(names=await db.get_all_user_names(user.office_id))
+    return UserNamesResponse(names=await db.get_all_user_names(user.company_id))
 
 
 @router.get("/stats/user", response_model=UserStatsResponse)
@@ -49,7 +49,7 @@ async def get_stats_user_range(name: str, start: str, end: str, user: AuthUser =
         start = _MIN_DATE
     if end < start:
         raise HTTPException(400, "end must be >= start")
-    rows = await db.get_user_stats_range(name, start, end, user.office_id)
+    rows = await db.get_user_stats_range(name, start, end, user.company_id)
     days = [UserStatsDayEntry(date=r["date"], tea=r["tea"], coffee=r["coffee"],
                               product_name=r.get("product_name", ""), qty=r.get("qty", 0)) for r in rows]
     return UserStatsResponse(name=name, start=start, end=end, days=days,
@@ -63,7 +63,7 @@ async def get_my_stats(start: str, end: str, user: AuthUser = Depends(get_curren
         start = _MIN_DATE
     if end < start:
         raise HTTPException(400, "end must be >= start")
-    rows = await db.get_user_stats_range(user.name, start, end, user.office_id)
+    rows = await db.get_user_stats_range(user.name, start, end, user.company_id)
     days = [UserStatsDayEntry(date=r["date"], tea=r["tea"], coffee=r["coffee"],
                               product_name=r.get("product_name", ""), qty=r.get("qty", 0)) for r in rows]
     return UserStatsResponse(name=user.name, start=start, end=end, days=days,

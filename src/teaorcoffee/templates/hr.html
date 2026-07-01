@@ -10,7 +10,7 @@
 <div id="toasts"></div>
 
 <div class="topbar">
-  <div class="topbar-title">👔 HR Panel <span class="office-tag" id="office-tag"></span></div>
+  <div class="topbar-title">👔 HR Panel <span class="office-tag" id="company-tag"></span></div>
   <div class="topbar-right">
     <button class="btn btn-sm" id="back-btn">← Orders</button>
     <button class="btn btn-sm" id="theme-btn"></button>
@@ -100,10 +100,10 @@
 
 <script src="/static/app.js"></script>
 <script>
-const sess = Auth.require(['main_admin','office_admin','office_hr']);
+const sess = Auth.require(['super_admin','company_admin','manager','hr']);
 if (!sess) throw new Error('redirect');
 Theme.init();
-document.getElementById('office-tag').textContent = sess.office_name || 'Office';
+document.getElementById('company-tag').textContent = sess.company_name || 'Company';
 document.getElementById('back-btn').onclick = () => location.href = '/order';
 document.getElementById('logout-btn').onclick = () => Auth.clearSession();
 initTabs('tabs');
@@ -129,7 +129,7 @@ async function loadOrders() {
 }
 
 async function removeOrder(name) {
-  const [status, data] = await API.post('/hr/remove-order', { name, password: '' });
+  const [status, data] = await API.post('/hr/remove-order', { name });
   if (status === 200) { Toast.ok(`Removed ${name}'s order.`); loadOrders(); }
   else Toast.err(data.detail || 'Error');
 }
@@ -140,7 +140,7 @@ async function loadProducts() {
   const [, data] = await API.get('/products');
   products = data.products || [];
   const sel = document.getElementById('po-prod');
-  sel.innerHTML = products.map(p => `<option value="${p.id}" data-max="${p.max_qty}">${p.emoji} ${p.name}</option>`).join('');
+  sel.innerHTML = products.map(p => `<option value="${p.distributor_product_id}" data-max="${p.max_qty}">${p.emoji} ${p.name}</option>`).join('');
 }
 
 document.getElementById('po-dec').onclick = () => { const e = document.getElementById('po-qty'); if (parseInt(e.value) > 1) e.value--; };
@@ -158,7 +158,7 @@ document.getElementById('po-btn').onclick = async () => {
   const qty = parseInt(document.getElementById('po-qty').value);
   const msgEl = document.getElementById('po-msg');
   if (!name) { msgEl.innerHTML = '<div class="alert alert-warn">Enter user name.</div>'; return; }
-  const [status, data] = await API.post('/hr/place-order', { name, password: '', product_id: productId, qty });
+  const [status, data] = await API.post('/hr/place-order', { name, product_id: productId, qty });
   if (status === 200 && data.success) { msgEl.innerHTML = `<div class="alert alert-ok">${data.message}</div>`; loadOrders(); }
   else if (status === 409) msgEl.innerHTML = `<div class="alert alert-warn">${data.detail || 'Already ordered.'}</div>`;
   else msgEl.innerHTML = `<div class="alert alert-err">${data.detail || 'Error.'}</div>`;

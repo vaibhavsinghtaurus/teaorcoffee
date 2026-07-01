@@ -10,7 +10,7 @@
 <div id="toasts"></div>
 
 <div class="topbar">
-  <div class="topbar-title">☕ <span id="greeting">Good day</span> <span class="office-tag" id="office-tag"></span></div>
+  <div class="topbar-title">☕ <span id="greeting">Good day</span> <span class="office-tag" id="company-tag"></span></div>
   <div class="topbar-right">
     <button class="btn btn-sm" id="stats-btn">📊 Stats</button>
     <button class="btn btn-sm" id="panel-btn" style="display:none"></button>
@@ -24,12 +24,14 @@
 
     <!-- ORDER CARD -->
     <div class="card">
-      <h2 class="text-center">Place Your Order</h2>
-      <p class="text-muted text-center mb16">Select your beverage for today</p>
+      <h2 class="text-center" id="order-card-title">Place Your Order</h2>
+      <p class="text-muted text-center mb16">Select a product and (optionally) a future date to schedule it</p>
 
-      <div id="order-status"></div>
       <div id="order-form">
-        <div class="form-group"><select id="product-sel"></select></div>
+        <div class="form-row">
+          <div class="form-group"><select id="product-sel"></select></div>
+          <div class="form-group"><input type="date" id="order-date"></div>
+        </div>
         <div class="form-group">
           <div class="qty-wrap">
             <button id="qty-dec">−</button>
@@ -38,10 +40,11 @@
           </div>
         </div>
         <div id="order-preview" class="order-preview" style="display:none">
-          <span class="text-muted">Your order:</span>
+          <span class="text-muted">Order:</span>
           <span class="order-badge" id="order-preview-badge"></span>
         </div>
         <button class="btn btn-primary btn-full mt8" id="place-btn">PLACE ORDER</button>
+        <button class="btn btn-full mt8" id="cancel-edit-btn" style="display:none">CANCEL EDIT</button>
       </div>
     </div>
 
@@ -58,12 +61,20 @@
     </div>
   </div>
 
+  <!-- MY ORDERS -->
+  <hr>
+  <h3>🧾 My Orders (today &amp; upcoming)</h3>
+  <div class="table-wrap mt8">
+    <table><thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Status</th><th></th></tr></thead>
+    <tbody id="my-orders-tbody"></tbody></table>
+  </div>
+
   <!-- LIVE TOTALS -->
   <hr>
   <h3>📊 Total Orders (Live)</h3>
   <div class="metrics" id="totals-metrics"></div>
   <div class="table-wrap mt8">
-    <table><thead><tr><th>Name</th><th>Order</th></tr></thead>
+    <table><thead><tr><th>Name</th><th>Order</th><th>Status</th></tr></thead>
     <tbody id="totals-tbody"></tbody></table>
   </div>
   <div id="votes-err" style="display:none" class="alert alert-warn mt8"></div>
@@ -77,46 +88,31 @@ Theme.init();
 
 // Setup nav
 document.getElementById('greeting').textContent = `Good day, ${sess.username}`;
-document.getElementById('office-tag').textContent = sess.office_name || 'Office';
+document.getElementById('company-tag').textContent = sess.company_name || 'Company';
 document.getElementById('chat-username').textContent = sess.username;
 document.getElementById('stats-btn').onclick = () => location.href = '/stats';
 document.getElementById('logout-btn').onclick = () => Auth.clearSession();
 
 const panelBtn = document.getElementById('panel-btn');
-if (sess.role === 'main_admin') { panelBtn.style.display = ''; panelBtn.textContent = '⚙️ Admin'; panelBtn.onclick = () => location.href = '/admin'; }
-else if (sess.role === 'office_admin') { panelBtn.style.display = ''; panelBtn.textContent = '🏢 Office'; panelBtn.onclick = () => location.href = '/office-admin'; }
-else if (sess.role === 'office_hr') { panelBtn.style.display = ''; panelBtn.textContent = '👔 HR'; panelBtn.onclick = () => location.href = '/hr'; }
+if (['company_admin', 'manager'].includes(sess.role)) { panelBtn.style.display = ''; panelBtn.textContent = '🏢 Company'; panelBtn.onclick = () => location.href = '/company-admin'; }
+else if (sess.role === 'hr') { panelBtn.style.display = ''; panelBtn.textContent = '👔 HR'; panelBtn.onclick = () => location.href = '/hr'; }
 
 // Products
-let products = [], myVote = null;
+let products = [];
+let editingDate = null; // set when editing an existing pending order
+
+const dateEl = document.getElementById('order-date');
+dateEl.min = D.today();
+dateEl.value = D.today();
 
 async function loadProducts() {
   const [, data] = await API.get('/products');
   products = data.products || [];
   const sel = document.getElementById('product-sel');
-  sel.innerHTML = products.map(p => `<option value="${p.id}" data-max="${p.max_qty}">${p.emoji} ${p.name} (max ${p.max_qty})</option>`).join('');
+  sel.innerHTML = products.map(p => `<option value="${p.distributor_product_id}" data-max="${p.max_qty}" data-price="${p.price}">${p.emoji} ${p.name} (max ${p.max_qty}, ₹${p.price})</option>`).join('')
+    || '<option value="">No products available — ask your manager to enable some</option>';
   updateQtyMax();
   updatePreview();
-}
-
-async function loadMyVote() {
-  const [status, data] = await API.get('/vote/me');
-  if (status === 200 && data) {
-    myVote = data;
-    showOrderedState();
-  } else {
-    myVote = null;
-    document.getElementById('order-form').style.display = '';
-    document.getElementById('order-status').innerHTML = '';
-  }
-}
-
-function showOrderedState() {
-  document.getElementById('order-form').style.display = 'none';
-  document.getElementById('order-status').innerHTML = `
-    <div class="order-preview"><span class="text-muted">Your order today:</span>
-    <span class="order-badge">${myVote.qty} ${myVote.product_emoji} ${myVote.product_name}</span></div>
-    <div class="alert alert-ok">✅ Order placed for today!</div>`;
 }
 
 function updateQtyMax() {
@@ -131,15 +127,17 @@ function updateQtyMax() {
 function updatePreview() {
   const sel = document.getElementById('product-sel');
   const opt = sel.selectedOptions[0];
-  if (!opt) return;
-  const qty = document.getElementById('qty').value;
+  if (!opt || !opt.value) return;
+  const qty = parseInt(document.getElementById('qty').value) || 1;
+  const price = parseFloat(opt.dataset.price) || 0;
   const badge = document.getElementById('order-preview-badge');
-  badge.textContent = `${qty} ${opt.textContent.split(' ')[0]}`;
+  badge.textContent = `${qty} ${opt.textContent.split(' ')[0]} · ₹${(qty * price).toFixed(2)}`;
   document.getElementById('order-preview').style.display = 'flex';
 }
 
 document.getElementById('product-sel').addEventListener('change', () => { updateQtyMax(); updatePreview(); });
 document.getElementById('qty').addEventListener('input', updatePreview);
+document.getElementById('order-date').addEventListener('change', updatePreview);
 document.getElementById('qty-dec').addEventListener('click', () => {
   const el = document.getElementById('qty');
   if (parseInt(el.value) > 1) { el.value = parseInt(el.value) - 1; updatePreview(); }
@@ -150,19 +148,76 @@ document.getElementById('qty-inc').addEventListener('click', () => {
   if (parseInt(el.value) < max) { el.value = parseInt(el.value) + 1; updatePreview(); }
 });
 
+function startEdit(order) {
+  editingDate = order.date;
+  document.getElementById('order-card-title').textContent = `Edit Order — ${order.date}`;
+  dateEl.value = order.date;
+  document.getElementById('product-sel').value = order.product_id;
+  document.getElementById('qty').value = order.qty;
+  updateQtyMax(); updatePreview();
+  document.getElementById('place-btn').textContent = 'UPDATE ORDER';
+  document.getElementById('cancel-edit-btn').style.display = '';
+}
+
+function stopEdit() {
+  editingDate = null;
+  document.getElementById('order-card-title').textContent = 'Place Your Order';
+  dateEl.value = D.today();
+  document.getElementById('place-btn').textContent = 'PLACE ORDER';
+  document.getElementById('cancel-edit-btn').style.display = 'none';
+  updatePreview();
+}
+document.getElementById('cancel-edit-btn').addEventListener('click', stopEdit);
+
 document.getElementById('place-btn').addEventListener('click', async () => {
   const sel = document.getElementById('product-sel');
   const productId = sel.value;
   const qty = parseInt(document.getElementById('qty').value);
+  const date = dateEl.value || D.today();
   if (!productId) return;
   const btn = document.getElementById('place-btn');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
-  const [status, data] = await API.post('/vote', { product_id: productId, qty });
-  btn.disabled = false; btn.textContent = 'PLACE ORDER';
-  if (status === 201) { await loadMyVote(); Toast.ok('Order placed!'); }
-  else if (status === 409) { Toast.warn("You've already ordered today!"); await loadMyVote(); }
-  else Toast.err(data.detail || 'Something went wrong.');
+
+  let status, data;
+  if (editingDate) {
+    [status, data] = await API.put('/vote', { product_id: productId, qty, date: editingDate });
+  } else {
+    [status, data] = await API.post('/vote', { product_id: productId, qty, date });
+  }
+  btn.disabled = false;
+  btn.textContent = editingDate ? 'UPDATE ORDER' : 'PLACE ORDER';
+
+  if (status === 200 || status === 201) {
+    Toast.ok(editingDate ? 'Order updated!' : (date === D.today() ? 'Order placed!' : `Order scheduled for ${date}!`));
+    stopEdit();
+    await loadMyOrders();
+  } else if (status === 409) {
+    Toast.warn(data.detail || 'You already have a pending order for that date.');
+  } else {
+    Toast.err(data.detail || 'Something went wrong.');
+  }
 });
+
+async function loadMyOrders() {
+  const [status, data] = await API.get('/orders/mine');
+  const rows = (status === 200 && data.orders) ? data.orders : [];
+  renderTable('my-orders-tbody', rows, [
+    r => r.date,
+    r => `${r.product_emoji || ''} ${r.product_name}`,
+    r => r.qty,
+    r => r.status === 'delivered' ? '✅ Delivered' : '⏳ Pending',
+    r => r.status === 'pending'
+      ? `<button class="btn btn-sm" onclick='window._editOrder(${JSON.stringify(r).replace(/'/g, "&apos;")})'>Edit</button>
+         <button class="btn btn-sm btn-danger" data-cancel="${r.date}">Cancel</button>`
+      : '',
+  ]);
+  document.querySelectorAll('[data-cancel]').forEach(b => b.addEventListener('click', async () => {
+    const [s, d] = await API.del(`/vote?date=${encodeURIComponent(b.dataset.cancel)}`);
+    if (s === 200) { Toast.ok('Order cancelled'); await loadMyOrders(); }
+    else Toast.err(d.detail || 'Could not cancel order');
+  }));
+}
+window._editOrder = startEdit;
 
 // ── Chat WebSocket ────────────────────────────────────────────────────────────
 let chatWs = null;
@@ -210,6 +265,7 @@ function connectVotes() {
     try {
       const data = JSON.parse(e.data);
       updateTotals(data);
+      loadMyOrders();
     } catch {}
   };
   votesWs.onclose = () => setTimeout(connectVotes, 3000);
@@ -231,12 +287,13 @@ function updateTotals(data) {
   renderTable('totals-tbody', orders, [
     r => r.name,
     r => `${r.product_emoji || '☕'} ${r.product_name || ''} ×${r.qty || 1}`,
+    r => r.status === 'delivered' ? '✅ Delivered' : '⏳ Pending',
   ]);
 }
 
 // Init
 loadProducts();
-loadMyVote();
+loadMyOrders();
 connectChat();
 connectVotes();
 </script>

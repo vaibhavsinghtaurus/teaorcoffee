@@ -1,7 +1,7 @@
 from typing import Set, List
 from fastapi import WebSocket
 
-# vote ws: maps websocket -> office_id for per-office broadcast
+# vote ws: maps websocket -> company_id for per-company broadcast
 connections: dict[WebSocket, str] = {}
 
 # chat ws

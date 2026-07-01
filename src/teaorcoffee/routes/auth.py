@@ -6,8 +6,8 @@ from datetime import datetime
 from src.teaorcoffee.models.schema import (
     LoginRequest, LoginResponse,
     SetupStatusResponse, SetupRequest, SetupResponse,
-    OfficeRequestCreate, OfficeRequestOut,
-    OfficeOut,
+    CompanyOut, RegisterCompanyRequest, RegisterCompanyResponse,
+    DistributorProductOut,
 )
 from src.teaorcoffee.core.database import db
 
@@ -18,51 +18,123 @@ router = APIRouter(tags=["Authentication"])
 
 @router.get("/setup/status", response_model=SetupStatusResponse)
 async def setup_status():
-    """Returns whether initial main admin setup is still needed."""
-    return SetupStatusResponse(needs_setup=not await db.has_main_admin())
+    """Returns whether initial super admin setup is still needed."""
+    return SetupStatusResponse(needs_setup=not await db.has_super_admin())
 
 
 @router.post("/setup", response_model=SetupResponse)
-async def setup_main_admin(request: SetupRequest):
-    """Create the first main admin. Fails if one already exists."""
-    if await db.has_main_admin():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Main admin already exists.")
+async def setup_super_admin(request: SetupRequest):
+    """Create the first super admin. Fails if one already exists."""
+    if await db.has_super_admin():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Super admin already exists.")
     name = request.name.strip()
     if not name:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Name cannot be empty.")
     if not request.password or len(request.password) < 4:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be at least 4 characters.")
 
-    user = await db.get_user_by_name(name)
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f"'{name}' is not in the allowed names list. Add them first or use an existing name.")
-
     password_hash = bcrypt.hashpw(request.password.encode(), bcrypt.gensalt()).decode()
-    await db.set_password_hash(int(user["id"]), password_hash)
-    await db.set_user_role(int(user["id"]), "main_admin")
-    return SetupResponse(success=True, message=f"Main admin '{name}' created successfully.")
+    user = await db.get_user_by_name(name)
+    if user:
+        if user.get("password_hash"):
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"'{name}' already has an account.")
+        await db.set_password_hash(int(user["id"]), password_hash)
+        await db.set_user_role(int(user["id"]), "super_admin")
+    else:
+        next_id = await db._next_user_id()
+        await db.users.insert_one({
+            "_id": next_id, "name": name, "company_id": None, "role": "super_admin",
+            "is_active": 1, "is_disabled": 0, "session_token": None, "last_login_at": None,
+            "password_hash": password_hash,
+        })
+    return SetupResponse(success=True, message=f"Super admin '{name}' created successfully.")
 
 
-# ── Public: active offices (for login dropdown) ───────────────────────────────
+# ── Public: active companies / distributors ──────────────────────────────────
 
-@router.get("/offices/active")
-async def get_active_offices():
-    offices = await db.get_active_offices()
-    return {"offices": [OfficeOut(id=o["id"], name=o["name"], slug=o["slug"], is_active=o["is_active"]) for o in offices]}
+@router.get("/companies/active")
+async def get_active_companies():
+    companies = await db.get_active_companies(mode="company")
+    return {"companies": [CompanyOut(id=c["id"], name=c["name"], slug=c["slug"], mode=c["mode"],
+                                     address=c.get("address", ""), distributor_id=c.get("distributor_id"), is_active=c["is_active"]) for c in companies]}
 
 
-# ── Office request (public, no auth) ─────────────────────────────────────────
+@router.get("/distributors/active")
+async def get_active_distributors():
+    companies = await db.get_active_companies(mode="distributor")
+    return {"companies": [CompanyOut(id=c["id"], name=c["name"], slug=c["slug"], mode=c["mode"],
+                                     address=c.get("address", ""), distributor_id=c.get("distributor_id"), is_active=c["is_active"]) for c in companies]}
 
-@router.post("/request-office")
-async def request_office(request: OfficeRequestCreate):
-    office_name = request.office_name.strip()
-    requester_name = request.requester_name.strip()
-    if not office_name or not requester_name:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Office name and requester name are required.")
-    request_id = await db.create_office_request(office_name, requester_name, request.contact_info.strip())
-    return {"success": True, "request_id": request_id,
-            "message": "Office addition request submitted. The main admin will review it."}
+
+@router.get("/distributors/{distributor_id}/products")
+async def get_distributor_products_public(distributor_id: str):
+    """Public catalog preview — used by the registration page's product checklist."""
+    distributor = await db.get_company_by_id(distributor_id)
+    if not distributor or distributor.get("mode") != "distributor":
+        raise HTTPException(404, "Distributor not found")
+    products = await db.get_distributor_products(distributor_id)
+    return {"products": [DistributorProductOut(id=p["id"], name=p["name"], emoji=p["emoji"],
+                                               current_price=p.get("current_price", 0), max_qty=p["max_qty"],
+                                               is_active=p.get("is_active", True)) for p in products]}
+
+
+# ── Self-serve company registration (public, no approval) ───────────────────
+
+@router.post("/register-company", response_model=RegisterCompanyResponse)
+async def register_company(request: RegisterCompanyRequest):
+    return await register_company_impl(request)
+
+
+async def register_company_impl(request: RegisterCompanyRequest) -> RegisterCompanyResponse:
+    name = request.name.strip()
+    slug = request.slug.strip().lower().replace(" ", "-")
+    admin_name = request.admin_name.strip()
+    address = request.address.strip()
+    if not name or not slug or not admin_name:
+        raise HTTPException(400, "Company name, slug, and admin name are required.")
+    if not address:
+        raise HTTPException(400, "Address is required — it's what distinguishes this branch.")
+    if request.mode not in ("company", "distributor"):
+        raise HTTPException(400, "mode must be 'company' or 'distributor'.")
+    if await db.get_user_by_name(admin_name):
+        raise HTTPException(409, f"User '{admin_name}' already exists.")
+
+    distributor_id = None
+    if request.mode == "company":
+        if not request.distributor_id:
+            raise HTTPException(400, "distributor_id is required when mode='company'.")
+        distributor = await db.get_company_by_id(request.distributor_id)
+        if not distributor or distributor.get("mode") != "distributor" or not distributor.get("is_active"):
+            raise HTTPException(400, "Invalid or inactive distributor selected.")
+        distributor_id = request.distributor_id
+
+    # A new branch — never reuses an existing row, even if the name matches another branch
+    company_id = await db.create_company_branch(name, slug, mode=request.mode, address=address,
+                                                 distributor_id=distributor_id)
+
+    created = await db.add_company_member(admin_name, company_id, "company_admin")
+    if not created:
+        raise HTTPException(409, f"User '{admin_name}' already exists.")
+    admin_user = await db.get_user_by_name(admin_name)
+    if request.admin_password:
+        password_hash = bcrypt.hashpw(request.admin_password.encode(), bcrypt.gensalt()).decode()
+        await db.set_password_hash(int(admin_user["id"]), password_hash)
+
+    await db.add_company_members(request.manager_names, company_id, "manager")
+    await db.add_company_members(request.hr_names, company_id, "hr")
+    staff_role = "employee" if request.mode == "company" else "distributor_boy"
+    await db.add_company_members(request.staff_names, company_id, staff_role)
+
+    if request.mode == "company" and request.enabled_product_ids:
+        catalog_ids = {p["id"] for p in await db.get_distributor_products(distributor_id)}
+        for product_id in request.enabled_product_ids:
+            if product_id in catalog_ids:
+                await db.enable_company_product(company_id, product_id)
+
+    return RegisterCompanyResponse(
+        success=True, company_id=company_id, name=name,
+        message=f"'{name}' registered successfully. Sign in as '{admin_name}' to get started.",
+    )
 
 
 # ── Login ─────────────────────────────────────────────────────────────────────
@@ -80,14 +152,18 @@ async def login(request: LoginRequest):
     if not int(user["is_active"]) or int(user.get("is_disabled", 0)):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User account is disabled")
 
-    # Office check: if office_id provided, user must belong to that office
-    # (main_admin and distributor users bypass this check)
-    user_role = user.get("role", "user")
-    user_company = user.get("company_id")
-    if request.office_id and user_role != "main_admin" and not user_company:
-        if user.get("office_id") != request.office_id:
+    user_role = user.get("role", "employee")
+    user_company_id = user.get("company_id")
+
+    company = await db.get_company_by_id(user_company_id) if user_company_id else None
+    if company and not company.get("is_active", True):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Your company has been deactivated")
+
+    # Company check: if company_id provided, user must belong to that company (super_admin bypasses)
+    if request.company_id and user_role != "super_admin":
+        if user_company_id != request.company_id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
-                                detail="User does not belong to the selected office")
+                                detail="User does not belong to the selected company")
 
     stored_hash = user.get("password_hash")
     display_name = user["name"]
@@ -110,13 +186,6 @@ async def login(request: LoginRequest):
     token = secrets.token_urlsafe(32)
     await db.update_user_token(int(user["id"]), token, datetime.now().isoformat())
 
-    office_name = None
-    office_id = user.get("office_id")
-    if office_id:
-        office = await db.get_office_by_id(office_id)
-        if office:
-            office_name = office["name"]
-
     return LoginResponse(
         success=True,
         name=display_name,
@@ -124,8 +193,7 @@ async def login(request: LoginRequest):
         token=token,
         nickname=user.get("nickname"),
         role=user_role,
-        office_id=office_id,
-        office_name=office_name,
-        company_id=user.get("company_id"),
-        position=user.get("position"),
+        company_id=user_company_id,
+        company_name=company["name"] if company else None,
+        company_mode=company["mode"] if company else None,
     )

@@ -10,7 +10,7 @@
 <div id="toasts"></div>
 
 <div class="topbar">
-  <div class="topbar-title">📊 Stats <span class="office-tag" id="office-tag"></span></div>
+  <div class="topbar-title">📊 Stats <span class="office-tag" id="company-tag"></span></div>
   <div class="topbar-right">
     <button class="btn btn-sm" id="back-btn">← Orders</button>
     <button class="btn btn-sm" id="theme-btn"></button>
@@ -88,7 +88,7 @@ const sess = Auth.require();
 if (!sess) throw new Error('redirect');
 Theme.init();
 
-document.getElementById('office-tag').textContent = sess.office_name || 'Office';
+document.getElementById('company-tag').textContent = sess.company_name || 'Company';
 document.getElementById('back-btn').onclick = () => location.href = '/order';
 document.getElementById('logout-btn').onclick = () => Auth.clearSession();
 
@@ -147,7 +147,7 @@ document.getElementById('bd-load').addEventListener('click', async () => {
 });
 
 // User stats
-const elevated = ['main_admin','office_admin','office_hr'].includes(sess.role);
+const elevated = ['super_admin','company_admin','manager','hr'].includes(sess.role);
 let selectedUser = sess.username;
 
 async function initUserSel() {

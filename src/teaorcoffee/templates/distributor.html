@@ -18,263 +18,282 @@
 
 <div class="page">
   <div class="tabs" id="tabs">
-    <button class="tab-btn">📋 Today's Orders</button>
-    <!-- Admin-only tabs added dynamically -->
+    <button class="tab-btn">📦 Deliveries</button>
+    <button class="tab-btn">📊 Order Summary</button>
+    <button class="tab-btn" id="tab-btn-products" style="display:none">🛒 Products &amp; Pricing</button>
+    <button class="tab-btn" id="tab-btn-staff" style="display:none">👥 Staff</button>
   </div>
 
-  <div class="tab-pane" id="tab-orders">
+  <!-- DELIVERIES -->
+  <div class="tab-pane" id="tab-deliveries">
     <div class="flex-between mb16">
-      <h3 style="margin:0">Today's Orders</h3>
-      <button class="btn btn-sm" id="refresh-orders">🔄 Refresh</button>
+      <h3 style="margin:0">Pending Orders — Go Deliver!</h3>
+      <div class="flex gap8">
+        <select id="deliv-company-sel"><option value="">All companies</option></select>
+        <button class="btn btn-sm" id="load-deliveries">🔄 Refresh</button>
+      </div>
     </div>
-    <div class="metrics" id="order-metrics"></div>
-    <div class="table-wrap mt8"><table><thead><tr><th>Name</th><th>Order</th><th>Qty</th></tr></thead><tbody id="orders-tbody"></tbody></table></div>
+    <div class="table-wrap"><table><thead><tr><th>Company</th><th>Employee</th><th>Product</th><th>Qty</th><th>Date</th><th></th></tr></thead><tbody id="deliv-tbody"></tbody></table></div>
   </div>
 
-  <!-- Dynamic panes added for admin -->
-  <div class="tab-pane" id="tab-staff" style="display:none">
-    <h3>Staff</h3>
-    <div class="form-group mb16">
-      <label class="form-label">Company</label>
-      <select id="staff-company-sel"></select>
+  <!-- ORDER SUMMARY -->
+  <div class="tab-pane" id="tab-summary">
+    <div class="flex-between mb16">
+      <h3 style="margin:0">Order Summary</h3>
+      <div class="flex gap8">
+        <input type="date" id="summary-date">
+        <button class="btn btn-sm" id="load-summary">🔄 Load</button>
+      </div>
     </div>
-    <button class="btn btn-sm mb8" id="load-staff">🔄 Load Staff</button>
-    <div class="table-wrap mb16"><table><thead><tr><th>Name</th><th>Position</th><th>Role</th><th></th></tr></thead><tbody id="staff-tbody"></tbody></table></div>
+    <h4>By Product</h4>
+    <div class="table-wrap mb16"><table><thead><tr><th>Product</th><th>Delivered</th><th>Pending</th></tr></thead><tbody id="summary-product-tbody"></tbody></table></div>
+    <h4>By Company</h4>
+    <div class="table-wrap mb16"><table><thead><tr><th>Company</th><th>Delivered</th><th>Pending</th></tr></thead><tbody id="summary-company-tbody"></tbody></table></div>
+    <h4>By User</h4>
+    <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Delivered</th><th>Pending</th></tr></thead><tbody id="summary-user-tbody"></tbody></table></div>
+  </div>
+
+  <!-- PRODUCTS & PRICING -->
+  <div class="tab-pane" id="tab-products">
+    <div class="card mb16">
+      <h4>Branch Address</h4>
+      <p class="text-muted mb8" id="dist-address-display">Loading…</p>
+      <div class="form-row">
+        <input id="dist-address-input" placeholder="New address…">
+        <button class="btn btn-primary" id="dist-address-btn">Update</button>
+      </div>
+      <div id="dist-address-msg" class="mt8"></div>
+    </div>
+    <div class="flex-between mb16">
+      <h3 style="margin:0">Products &amp; Pricing</h3>
+      <button class="btn btn-sm" id="load-products">🔄 Load</button>
+    </div>
+    <div id="products-list" class="mb16"></div>
+    <div class="card">
+      <h4>Add Product</h4>
+      <div class="form-row mb8">
+        <input id="new-prod-name" placeholder="e.g. Green Tea">
+        <input id="new-prod-emoji" placeholder="Emoji" style="max-width:80px" value="🛒">
+      </div>
+      <div class="form-row mb8">
+        <input type="number" id="new-prod-price" placeholder="Price (₹)" min="0" step="0.5">
+        <input type="number" id="new-prod-maxqty" placeholder="Max qty" min="1" value="2">
+      </div>
+      <button class="btn btn-primary btn-full" id="add-prod-btn">Add Product</button>
+      <div id="add-prod-msg" class="mt8"></div>
+    </div>
+  </div>
+
+  <!-- STAFF -->
+  <div class="tab-pane" id="tab-staff">
+    <div class="flex-between mb16">
+      <h3 style="margin:0">Staff</h3>
+      <button class="btn btn-sm" id="load-staff">🔄 Load</button>
+    </div>
+    <div class="table-wrap mb16"><table><thead><tr><th>Name</th><th>Role</th><th></th></tr></thead><tbody id="staff-tbody"></tbody></table></div>
     <div class="card">
       <h4>Add Staff Member</h4>
       <div class="form-row mb8">
         <input id="add-staff-name" placeholder="Full name…">
-        <select id="add-staff-role"><option value="distributor_staff">distributor_staff</option><option value="company_admin">company_admin</option></select>
+        <select id="add-staff-role">
+          <option value="distributor_boy">Distributor Boy</option>
+          <option value="manager">Manager</option>
+          <option value="hr">HR</option>
+          <option value="company_admin">Company Admin</option>
+        </select>
       </div>
-      <div class="form-group mb8"><select id="add-staff-pos"><option>Loading positions…</option></select></div>
       <button class="btn btn-primary btn-full" id="add-staff-btn">Add Staff</button>
       <div id="add-staff-msg" class="mt8"></div>
-    </div>
-  </div>
-
-  <div class="tab-pane" id="tab-positions" style="display:none">
-    <h3>Positions</h3>
-    <div class="form-group mb16">
-      <label class="form-label">Company</label>
-      <select id="pos-company-sel"></select>
-    </div>
-    <button class="btn btn-sm mb8" id="load-positions">🔄 Load Positions</button>
-    <div class="table-wrap mb16"><table><thead><tr><th>Position</th><th>Level</th><th></th></tr></thead><tbody id="pos-tbody"></tbody></table></div>
-    <div class="card">
-      <h4>Add Position</h4>
-      <div class="form-row mb8">
-        <input id="new-pos-name" placeholder="e.g. Manager">
-        <input type="number" id="new-pos-level" value="1" min="1" max="10" style="max-width:80px">
-      </div>
-      <button class="btn btn-primary btn-full" id="add-pos-btn">Add Position</button>
-      <div id="add-pos-msg" class="mt8"></div>
-    </div>
-  </div>
-
-  <div class="tab-pane" id="tab-companies" style="display:none">
-    <h3>Distributor Companies</h3>
-    <button class="btn btn-sm mb16" id="load-companies">🔄 Load Companies</button>
-    <div class="table-wrap mb16"><table><thead><tr><th>Name</th><th>Status</th><th></th></tr></thead><tbody id="companies-tbody"></tbody></table></div>
-    <div class="card" id="create-company-card">
-      <h4>Add Distributor Company</h4>
-      <div id="offices-note" class="alert alert-info mb8" style="display:none">Requires admin password in the admin panel first.</div>
-      <div class="form-group"><select id="co-office"></select></div>
-      <div class="form-row mb8">
-        <input id="co-name" placeholder="Company name…">
-        <input id="co-pw" type="password" placeholder="Admin password…">
-      </div>
-      <button class="btn btn-primary btn-full" id="create-co-btn">Create Company</button>
-      <div id="create-co-msg" class="mt8"></div>
     </div>
   </div>
 </div>
 
 <script src="/static/app.js"></script>
 <script>
-const sess = Auth.require(['main_admin','company_admin','distributor_staff']);
+const sess = Auth.require(['super_admin','company_admin','manager','hr','distributor_boy']);
 if (!sess) throw new Error('redirect');
 Theme.init();
 document.getElementById('logout-btn').onclick = () => Auth.clearSession();
 document.getElementById('uname').textContent = sess.username;
 
-const isAdmin = ['main_admin','company_admin'].includes(sess.role);
-document.getElementById('role-label').textContent = isAdmin ? 'Distributor Admin' : `Distributor — ${sess.position || 'Staff'}`;
+const canManage = ['super_admin','company_admin','manager'].includes(sess.role);
+document.getElementById('role-label').textContent = canManage ? 'Distributor Admin' : `Distributor — ${sess.role}`;
+if (canManage) {
+  document.getElementById('tab-btn-products').style.display = '';
+  document.getElementById('tab-btn-staff').style.display = '';
+}
+initTabs('tabs');
 
-// Build tabs dynamically if admin
-const tabsEl = document.getElementById('tabs');
-if (isAdmin) {
-  ['👥 Staff','📌 Positions','🏢 Companies'].forEach((label, i) => {
-    const btn = document.createElement('button');
-    btn.className = 'tab-btn';
-    btn.textContent = label;
-    tabsEl.appendChild(btn);
-  });
-  document.getElementById('tab-staff').style.display = '';
-  document.getElementById('tab-positions').style.display = '';
-  document.getElementById('tab-companies').style.display = '';
+// ── Deliveries ─────────────────────────────────────────────────────────────────
+async function loadBuyers() {
+  const [s, d] = await API.get('/distributor/buyers');
+  const companies = (s === 200 ? d.companies : []) || [];
+  const sel = document.getElementById('deliv-company-sel');
+  sel.innerHTML = '<option value="">All companies</option>' + companies.map(c => `<option value="${c.id}">${c.name}${c.address ? ' — ' + c.address : ''}</option>`).join('');
 }
 
-// Custom tab init to handle dynamic tabs
-function initDynTabs() {
-  const btns = tabsEl.querySelectorAll('.tab-btn');
-  const paneIds = ['tab-orders', 'tab-staff', 'tab-positions', 'tab-companies'];
-  const panes = paneIds.map(id => document.getElementById(id));
-  btns.forEach((btn, i) => {
-    btn.onclick = () => {
-      btns.forEach(b => b.classList.remove('active'));
-      panes.forEach(p => p && p.classList.remove('active'));
-      btn.classList.add('active');
-      if (panes[i]) panes[i].classList.add('active');
-    };
-  });
-  btns[0].click();
-}
-initDynTabs();
-
-// ── Orders ───────────────────────────────────────────────────────────────────
-async function loadOrders() {
-  const [s,d] = await API.get('/distributor/orders');
+async function loadDeliveries() {
+  const companyId = document.getElementById('deliv-company-sel').value;
+  const path = companyId ? `/distributor/orders/pending?buyer_company_id=${companyId}` : '/distributor/orders/pending';
+  const [s, d] = await API.get(path);
   if (s !== 200) { Toast.err(d.detail || 'Failed.'); return; }
-  const totals = d.totals || {}, orders = d.orders || [], count = d.order_count ?? orders.length;
-  const metrics = Object.entries(totals).map(([n,i]) => ({ label: `${typeof i==='object'?i.emoji:''} ${n}`, value: typeof i==='object'?i.total:i }));
-  metrics.push({ label: '👥 Total Orders', value: count });
-  renderMetrics('order-metrics', metrics);
-  document.getElementById('orders-tbody').innerHTML = orders.map(o =>
-    `<tr><td>${o.name}</td><td>${o.product_emoji||'☕'} ${o.product_name||''}</td><td>${o.qty||1}</td></tr>`
-  ).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--muted)">No orders today.</td></tr>';
+  const orders = d.orders || [];
+  document.getElementById('deliv-tbody').innerHTML = orders.map(o => `
+    <tr><td>${o.company_name}</td><td>${o.user_name}</td><td>${o.product_emoji} ${o.product_name}</td><td>${o.qty}</td><td>${o.date}</td>
+    <td><button class="btn btn-sm btn-primary" data-deliver="${o.id}">✅ Mark Delivered</button></td></tr>
+  `).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted)">Nothing pending 🎉</td></tr>';
+  document.querySelectorAll('[data-deliver]').forEach(btn => btn.addEventListener('click', async () => {
+    const [s2, d2] = await API.post(`/distributor/orders/${btn.dataset.deliver}/deliver`, {});
+    if (s2 === 200) { Toast.ok('Marked delivered!'); loadDeliveries(); }
+    else Toast.err(d2.detail || 'Error');
+  }));
 }
-document.getElementById('refresh-orders').onclick = loadOrders;
-loadOrders();
+document.getElementById('load-deliveries').onclick = loadDeliveries;
+document.getElementById('deliv-company-sel').addEventListener('change', loadDeliveries);
 
-if (!isAdmin) { /* nothing more */ return; } // staff sees only orders
-
-// ── Admin: Companies list ────────────────────────────────────────────────────
-let companiesList = [];
-async function loadCompanies() {
-  const [s,d] = await API.get('/distributor/companies');
-  companiesList = (s === 200 ? d.companies : []) || [];
-  return companiesList;
+// ── Order Summary ──────────────────────────────────────────────────────────────
+document.getElementById('summary-date').value = D.today();
+document.getElementById('summary-date').max = D.today();
+async function loadSummary() {
+  const date = document.getElementById('summary-date').value || D.today();
+  const [s, d] = await API.get(`/distributor/orders/summary?date=${date}`);
+  if (s !== 200) { Toast.err(d.detail || 'Failed.'); return; }
+  renderTable('summary-product-tbody', d.by_product || [], [
+    r => r.product_name, r => `${r.delivered_qty} (${r.delivered_count} orders)`, r => `${r.pending_qty} (${r.pending_count} orders)`,
+  ]);
+  renderTable('summary-company-tbody', d.by_company || [], [
+    r => r.company_name, r => `${r.delivered_qty} (${r.delivered_count} orders)`, r => `${r.pending_qty} (${r.pending_count} orders)`,
+  ]);
+  renderTable('summary-user-tbody', d.by_user || [], [
+    r => r.user_name, r => `${r.delivered_qty} (${r.delivered_count} orders)`, r => `${r.pending_qty} (${r.pending_count} orders)`,
+  ]);
 }
+document.getElementById('load-summary').onclick = loadSummary;
+document.getElementById('summary-date').addEventListener('change', loadSummary);
 
-async function renderCompanies() {
-  await loadCompanies();
-  document.getElementById('companies-tbody').innerHTML = companiesList.map(c =>
-    `<tr><td><strong>${c.name}</strong></td><td>${c.is_active ? '🟢 Active' : '🔴 Inactive'}</td>
-     <td><button class="btn btn-sm" onclick="toggleCompany('${c.id}',${!c.is_active})">${c.is_active ? 'Deactivate' : 'Activate'}</button></td></tr>`
-  ).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--muted)">No companies.</td></tr>';
+// ── Products & Pricing ─────────────────────────────────────────────────────────
+async function loadProducts() {
+  const [s, d] = await API.get('/distributor/products');
+  const el = document.getElementById('products-list');
+  if (s !== 200) { el.innerHTML = `<div class="alert alert-err">${d.detail || 'Error'}</div>`; return; }
+  const products = d.products || [];
+  el.innerHTML = products.map(p => `
+    <div class="card mb8">
+      <div class="flex-between">
+        <div><strong>${p.emoji} ${p.name}</strong> <span class="text-muted">(max ${p.max_qty}) — ${p.is_active ? '🟢 Active' : '🔴 Removed'}</span></div>
+        <div class="flex gap8">
+          <button class="btn btn-sm" data-history="${p.id}">History</button>
+          <button class="btn btn-sm" data-toggle="${p.id}" data-active="${p.is_active}">${p.is_active ? 'Remove' : 'Restore'}</button>
+        </div>
+      </div>
+      <div class="flex gap8 mt8">
+        <span>Current price: <strong>₹${p.current_price}</strong></span>
+        <input type="number" min="0" step="0.5" placeholder="New price" data-price-input="${p.id}" style="max-width:120px">
+        <button class="btn btn-sm btn-primary" data-set-price="${p.id}">Update Price</button>
+      </div>
+      <div class="mt8" id="history-${p.id}" style="display:none"></div>
+    </div>
+  `).join('') || '<p class="text-muted">No products yet.</p>';
 
-  // Populate company selects
-  const opts = companiesList.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-  ['staff-company-sel','pos-company-sel'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = opts; });
-  if (companiesList[0]) loadPositionsForStaff(companiesList[0].id);
+  el.querySelectorAll('[data-set-price]').forEach(btn => btn.addEventListener('click', async () => {
+    const pid = btn.dataset.setPrice;
+    const price = parseFloat(el.querySelector(`[data-price-input="${pid}"]`).value);
+    if (!(price >= 0)) { Toast.warn('Enter a valid price.'); return; }
+    const [s2, d2] = await API.put('/distributor/products/price', { product_id: pid, new_price: price });
+    if (s2 === 200) { Toast.ok('Price updated.'); loadProducts(); } else Toast.err(d2.detail || 'Error');
+  }));
+  el.querySelectorAll('[data-toggle]').forEach(btn => btn.addEventListener('click', async () => {
+    const pid = btn.dataset.toggle;
+    const isActive = btn.dataset.active === 'true';
+    const [s2, d2] = await API.post('/distributor/products/active', { product_id: pid, is_active: !isActive });
+    if (s2 === 200) { Toast.ok(d2.message || 'Updated.'); loadProducts(); } else Toast.err(d2.detail || 'Error');
+  }));
+  el.querySelectorAll('[data-history]').forEach(btn => btn.addEventListener('click', async () => {
+    const pid = btn.dataset.history;
+    const box = document.getElementById(`history-${pid}`);
+    if (box.style.display !== 'none') { box.style.display = 'none'; return; }
+    const [s2, d2] = await API.get(`/distributor/products/${pid}/price-history`);
+    const history = (s2 === 200 ? d2.history : []) || [];
+    box.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Price</th><th>Effective At</th></tr></thead><tbody>' +
+      history.map(h => `<tr><td>₹${h.price}</td><td>${h.effective_at}</td></tr>`).join('') +
+      '</tbody></table></div>';
+    box.style.display = '';
+  }));
 }
-async function toggleCompany(id, active) {
-  const [s,d] = await API.post(`/distributor/companies/active?company_id=${id}&is_active=${active}`, {});
-  if (s === 200) { Toast.ok(d.message || 'Updated.'); renderCompanies(); }
-  else Toast.err(d.detail || 'Error');
-}
-document.getElementById('load-companies').onclick = renderCompanies;
-
-// ── Admin: Office list for create company ────────────────────────────────────
-if (sess.role === 'main_admin') {
-  API.get('/offices?password=').then(([s,d]) => {
-    // We don't have admin pw here, so show note
-    document.getElementById('offices-note').style.display = '';
-  });
-}
-
-document.getElementById('create-co-btn').onclick = async () => {
-  const name = document.getElementById('co-name').value.trim();
-  const pw = document.getElementById('co-pw').value.trim();
-  // For office_id, we need selection. Load offices first.
-  const [os, od] = await API.adminGet('/offices', { password: pw });
-  const msg = document.getElementById('create-co-msg');
-  if (os !== 200) { msg.innerHTML = `<div class="alert alert-err">Invalid admin password or could not load offices.</div>`; return; }
-  const offices = od.offices || [];
-  if (!offices.length) { msg.innerHTML = `<div class="alert alert-err">No offices found.</div>`; return; }
-  // For simplicity, pick first office or show select
-  const sel = document.getElementById('co-office');
-  if (!sel.options.length || sel.options[0].value === '') {
-    sel.innerHTML = offices.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
-    msg.innerHTML = `<div class="alert alert-info">Select an office and click Create again.</div>`;
-    return;
-  }
-  const officeId = sel.value;
-  if (!name || !pw || !officeId) { msg.innerHTML = `<div class="alert alert-warn">Fill all fields.</div>`; return; }
-  const [s,d] = await API.post('/distributor/companies', { name, office_id: officeId, password: pw });
-  if (s === 200 && d.success) { msg.innerHTML = `<div class="alert alert-ok">${d.message}</div>`; document.getElementById('co-name').value = ''; renderCompanies(); }
-  else if (s === 409) msg.innerHTML = `<div class="alert alert-warn">${d.detail||'Already exists.'}</div>`;
-  else msg.innerHTML = `<div class="alert alert-err">${d.detail||'Error.'}</div>`;
+document.getElementById('load-products').onclick = loadProducts;
+document.getElementById('add-prod-btn').onclick = async () => {
+  const name = document.getElementById('new-prod-name').value.trim();
+  const emoji = document.getElementById('new-prod-emoji').value.trim() || '🛒';
+  const price = parseFloat(document.getElementById('new-prod-price').value);
+  const max_qty = parseInt(document.getElementById('new-prod-maxqty').value);
+  const msg = document.getElementById('add-prod-msg');
+  if (!name || !(price >= 0) || !max_qty) { msg.innerHTML = '<div class="alert alert-warn">Fill all fields.</div>'; return; }
+  const [s, d] = await API.post('/distributor/products', { company_id: sess.company_id, name, emoji, price, max_qty });
+  if (s === 200 && d.success) {
+    msg.innerHTML = `<div class="alert alert-ok">${d.message}</div>`;
+    document.getElementById('new-prod-name').value = '';
+    loadProducts();
+  } else msg.innerHTML = `<div class="alert alert-err">${d.detail || 'Error.'}</div>`;
+  setTimeout(() => { msg.innerHTML = ''; }, 4000);
 };
 
-// ── Admin: Staff ─────────────────────────────────────────────────────────────
+// ── Staff ──────────────────────────────────────────────────────────────────────
+const roleClass = (role) => ({
+  super_admin: 'r-super_admin', company_admin: 'r-company_admin', manager: 'r-manager',
+  hr: 'r-hr', employee: 'r-employee', distributor_boy: 'r-distributor_boy',
+}[role] || 'r-distributor_boy');
+
 document.getElementById('load-staff').onclick = async () => {
-  const companyId = document.getElementById('staff-company-sel').value;
-  if (!companyId) return;
-  const [s,d] = await API.get(`/distributor/companies/${companyId}/staff`);
+  const [s, d] = await API.get('/distributor/staff');
   if (s !== 200) { Toast.err(d.detail || 'Error'); return; }
-  const staff = d.staff || [];
+  const staff = d.users || [];
   document.getElementById('staff-tbody').innerHTML = staff.map(m =>
-    `<tr><td><strong>${m.name}</strong></td><td>${m.position||'—'}</td><td>${m.role||'distributor_staff'}</td>
+    `<tr><td><strong>${m.name}</strong></td><td><span class="role-badge ${roleClass(m.role)}">${m.role}</span></td>
      <td><button class="btn btn-sm btn-danger" onclick="removeStaff(${m.id})">Remove</button></td></tr>`
-  ).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--muted)">No staff.</td></tr>';
+  ).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--muted)">No staff.</td></tr>';
 };
 async function removeStaff(id) {
-  const [s,d] = await API.del('/distributor/staff', { user_id: id, password: '' });
+  const [s, d] = await API.del('/distributor/staff', { user_id: id });
   if (s === 200) { Toast.ok('Removed.'); document.getElementById('load-staff').click(); }
   else Toast.err(d.detail || 'Error');
 }
-async function loadPositionsForStaff(companyId) {
-  const [s,d] = await API.get(`/distributor/companies/${companyId}/positions`);
-  const positions = (s === 200 ? d.positions : []) || [];
-  const sel = document.getElementById('add-staff-pos');
-  sel.innerHTML = positions.map(p => `<option value="${p.name}">${p.name}</option>`).join('') || '<option>No positions</option>';
-}
-document.getElementById('staff-company-sel').addEventListener('change', e => loadPositionsForStaff(e.target.value));
 document.getElementById('add-staff-btn').onclick = async () => {
-  const companyId = document.getElementById('staff-company-sel').value;
   const name = document.getElementById('add-staff-name').value.trim();
   const role = document.getElementById('add-staff-role').value;
-  const pos = document.getElementById('add-staff-pos').value;
   const msg = document.getElementById('add-staff-msg');
-  if (!name || !pos) { msg.innerHTML = '<div class="alert alert-warn">Fill all fields.</div>'; return; }
-  const [s,d] = await API.post('/distributor/staff', { company_id: companyId, name, role, position: pos, password: '' });
-  if (s === 200 && d.success) { msg.innerHTML = `<div class="alert alert-ok">${d.message}</div>`; document.getElementById('add-staff-name').value = ''; document.getElementById('load-staff').click(); }
-  else if (s === 409) msg.innerHTML = `<div class="alert alert-warn">${d.detail||'Already exists.'}</div>`;
-  else msg.innerHTML = `<div class="alert alert-err">${d.detail||'Error.'}</div>`;
+  if (!name) { msg.innerHTML = '<div class="alert alert-warn">Enter a name.</div>'; return; }
+  const [s, d] = await API.post('/distributor/staff', { company_id: sess.company_id, name, role });
+  if (s === 200 && d.success) {
+    msg.innerHTML = `<div class="alert alert-ok">${d.message}</div>`;
+    document.getElementById('add-staff-name').value = '';
+    document.getElementById('load-staff').click();
+  } else if (s === 409) msg.innerHTML = `<div class="alert alert-warn">${d.detail || 'Already exists.'}</div>`;
+  else msg.innerHTML = `<div class="alert alert-err">${d.detail || 'Error.'}</div>`;
   setTimeout(() => { msg.innerHTML = ''; }, 4000);
 };
 
-// ── Admin: Positions ─────────────────────────────────────────────────────────
-document.getElementById('load-positions').onclick = async () => {
-  const companyId = document.getElementById('pos-company-sel').value;
-  if (!companyId) return;
-  const [s,d] = await API.get(`/distributor/companies/${companyId}/positions`);
-  if (s !== 200) { Toast.err(d.detail || 'Error'); return; }
-  document.getElementById('pos-tbody').innerHTML = (d.positions||[]).map(p =>
-    `<tr><td><strong>${p.name}</strong></td><td>Level ${p.level}</td>
-     <td><button class="btn btn-sm btn-danger" onclick="removePosition('${p.id}')">Remove</button></td></tr>`
-  ).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--muted)">No positions.</td></tr>';
-};
-async function removePosition(id) {
-  const [s,d] = await API.del('/distributor/positions', { position_id: id, password: '' });
-  if (s === 200) { Toast.ok(`Position removed.`); document.getElementById('load-positions').click(); }
-  else Toast.err(d.detail || 'Error');
+// ── Branch Address ─────────────────────────────────────────────────────────────
+async function loadDistAddress() {
+  const [s, d] = await API.get('/distributor/company');
+  const el = document.getElementById('dist-address-display');
+  if (s !== 200) { el.textContent = 'Could not load.'; return; }
+  el.innerHTML = `<strong>${d.name}</strong> — ${d.address || 'no address set'}`;
+  document.getElementById('dist-address-input').value = d.address || '';
 }
-document.getElementById('add-pos-btn').onclick = async () => {
-  const companyId = document.getElementById('pos-company-sel').value;
-  const name = document.getElementById('new-pos-name').value.trim();
-  const level = parseInt(document.getElementById('new-pos-level').value);
-  const msg = document.getElementById('add-pos-msg');
-  if (!name) { msg.innerHTML = '<div class="alert alert-warn">Enter a position name.</div>'; return; }
-  const [s,d] = await API.post('/distributor/positions', { company_id: companyId, name, level, password: '' });
-  if (s === 200 && d.success) { msg.innerHTML = `<div class="alert alert-ok">${d.message}</div>`; document.getElementById('new-pos-name').value = ''; document.getElementById('load-positions').click(); }
-  else if (s === 409) msg.innerHTML = `<div class="alert alert-warn">Position already exists.</div>`;
-  else msg.innerHTML = `<div class="alert alert-err">${d.detail||'Error.'}</div>`;
+document.getElementById('dist-address-btn').onclick = async () => {
+  const address = document.getElementById('dist-address-input').value.trim();
+  const msg = document.getElementById('dist-address-msg');
+  if (!address) { msg.innerHTML = '<div class="alert alert-warn">Enter an address.</div>'; return; }
+  const [s, d] = await API.put('/distributor/company/address', { address });
+  if (s === 200 && d.success) { msg.innerHTML = `<div class="alert alert-ok">${d.message}</div>`; loadDistAddress(); }
+  else msg.innerHTML = `<div class="alert alert-err">${d.detail || 'Error.'}</div>`;
   setTimeout(() => { msg.innerHTML = ''; }, 4000);
 };
 
-renderCompanies();
+loadBuyers();
+loadDeliveries();
+loadSummary();
+if (canManage) { loadProducts(); loadDistAddress(); document.getElementById('load-staff').click(); }
 </script>
 </body>
 </html>

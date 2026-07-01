@@ -6,9 +6,9 @@ const Auth = {
   setSession(data) {
     localStorage.setItem('toc_token', data.token || '');
     localStorage.setItem('toc_user', JSON.stringify({
-      username: data.name || '', role: data.role || 'user',
-      office_id: data.office_id || '', office_name: data.office_name || '',
-      company_id: data.company_id || '', position: data.position || '',
+      username: data.name || '', role: data.role || 'employee',
+      company_id: data.company_id || '', company_name: data.company_name || '',
+      company_mode: data.company_mode || '',
     }));
   },
   clearSession() { localStorage.removeItem('toc_token'); localStorage.removeItem('toc_user'); window.location.href = '/'; },
@@ -18,6 +18,14 @@ const Auth = {
     const user = this.getUser();
     if (roles && roles.length && !roles.includes(user.role)) { window.location.href = '/'; return null; }
     return { token, ...user };
+  },
+  homeFor(role, mode) {
+    if (role === 'super_admin') return '/admin';
+    if (role === 'distributor_boy') return '/distributor';
+    if (role === 'company_admin' || role === 'manager' || role === 'hr') {
+      return mode === 'distributor' ? '/distributor' : (role === 'hr' ? '/hr' : '/company-admin');
+    }
+    return '/order';
   },
 };
 

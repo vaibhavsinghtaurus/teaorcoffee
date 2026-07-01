@@ -14,13 +14,13 @@
     <div class="login-logo">☕</div>
     <div class="login-title">Tea or Coffee</div>
     <div class="login-sub" style="margin-bottom:8px">First-Time Setup</div>
-    <div class="alert alert-info mb16">No main admin has been configured yet. Set one up to get started.</div>
-    <div class="form-group"><label class="form-label">Your Name (must be in the allowed list)</label>
+    <div class="alert alert-info mb16">No super admin has been configured yet. Set one up to get started.</div>
+    <div class="form-group"><label class="form-label">Your Name</label>
       <input id="setup-name" placeholder="e.g. Vaibhav" autocomplete="username"></div>
     <div class="form-group"><label class="form-label">Set Your Password</label>
       <input id="setup-pw" type="password" placeholder="Choose a password…" autocomplete="new-password"></div>
     <div id="setup-msg"></div>
-    <button class="btn btn-primary btn-full mt8" id="setup-btn">CREATE MAIN ADMIN</button>
+    <button class="btn btn-primary btn-full mt8" id="setup-btn">CREATE SUPER ADMIN</button>
     <div style="text-align:right;margin-top:12px">
       <button class="btn btn-sm" id="setup-theme-btn"></button>
     </div>
@@ -33,9 +33,9 @@
     <div class="login-sub">Sign in to place your order</div>
 
     <div class="form-group">
-      <label class="form-label">Office</label>
-      <select id="office-sel">
-        <option value="">Loading offices…</option>
+      <label class="form-label">Company</label>
+      <select id="company-sel">
+        <option value="">Loading companies…</option>
       </select>
     </div>
     <div class="form-group">
@@ -47,27 +47,9 @@
     <div id="msg"></div>
     <button class="btn btn-primary btn-full mt8" id="sign-in">SIGN IN</button>
 
-    <!-- ── Request new office ── -->
-    <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
-      <button class="btn btn-sm btn-full" id="req-toggle" style="background:none;border:none;color:var(--muted);cursor:pointer;text-align:left">
-        ＋ Request addition of a new office
-      </button>
-      <div id="req-form" style="display:none;margin-top:12px">
-        <div class="form-group">
-          <label class="form-label">Office / Company Name</label>
-          <input id="req-office-name" placeholder="e.g. Zaff Corp">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Your Name</label>
-          <input id="req-your-name" placeholder="Your full name">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Contact Info (email / phone)</label>
-          <input id="req-contact" placeholder="e.g. you@example.com">
-        </div>
-        <div id="req-msg"></div>
-        <button class="btn btn-primary btn-full" id="req-submit">SUBMIT REQUEST</button>
-      </div>
+    <!-- ── Register a new company ── -->
+    <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px;text-align:center">
+      <a href="/register" style="color:var(--muted);text-decoration:none">＋ Register your company — no approval needed</a>
     </div>
 
     <div style="text-align:right;margin-top:12px">
@@ -84,19 +66,14 @@ Theme.init();
 // If already logged in, redirect
 if (Auth.getToken()) {
   const user = Auth.getUser();
-  const role = user.role;
-  if (role === 'main_admin') location.href = '/admin';
-  else if (role === 'office_admin') location.href = '/office-admin';
-  else if (role === 'office_hr') location.href = '/hr';
-  else if (['company_admin','distributor_staff'].includes(role)) location.href = '/distributor';
-  else location.href = '/order';
+  location.href = Auth.homeFor(user.role, user.company_mode);
 }
 
 // Wire up theme buttons for both cards
 document.getElementById('theme-btn').onclick = () => Theme.toggle();
 document.getElementById('setup-theme-btn').onclick = () => Theme.toggle();
 
-// ── Bootstrap: check setup status, then load offices ─────────────────────────
+// ── Bootstrap: check setup status, then load companies ───────────────────────
 async function init() {
   const [s, d] = await API.publicGet('/setup/status');
   if (s !== 200) {
@@ -107,7 +84,7 @@ async function init() {
   if (d.needs_setup) {
     showSetup();
   } else {
-    await loadOffices();
+    await loadCompanies();
     showLogin();
   }
 }
@@ -134,27 +111,27 @@ document.getElementById('setup-btn').onclick = async () => {
   const btn = document.getElementById('setup-btn');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
   const [s, d] = await API.publicPost('/setup', { name, password: pw });
-  btn.disabled = false; btn.textContent = 'CREATE MAIN ADMIN';
+  btn.disabled = false; btn.textContent = 'CREATE SUPER ADMIN';
   if (s === 200 && d.success) {
     msg.innerHTML = `<div class="alert alert-ok">${d.message}</div>`;
-    setTimeout(async () => { await loadOffices(); showLogin(); }, 1200);
+    setTimeout(async () => { await loadCompanies(); showLogin(); }, 1200);
   } else {
     msg.innerHTML = `<div class="alert alert-err">${d.detail || d.message || 'Error.'}</div>`;
   }
 };
 document.getElementById('setup-pw').addEventListener('keydown', e => e.key === 'Enter' && document.getElementById('setup-btn').click());
 
-// ── Load active offices ───────────────────────────────────────────────────────
-async function loadOffices() {
-  const [s, d] = await API.publicGet('/offices/active');
-  const sel = document.getElementById('office-sel');
-  if (s !== 200 || !d.offices || !d.offices.length) {
-    sel.innerHTML = '<option value="">No active offices</option>';
+// ── Load active companies ─────────────────────────────────────────────────────
+async function loadCompanies() {
+  const [s, d] = await API.publicGet('/companies/active');
+  const sel = document.getElementById('company-sel');
+  if (s !== 200 || !d.companies || !d.companies.length) {
+    sel.innerHTML = '<option value="">No active companies</option>';
     return;
   }
   sel.innerHTML =
-    d.offices.map(o => `<option value="${o.id}">${o.name}</option>`).join('') +
-    '<option value="__dist">🚚 Distributor Access</option>';
+    d.companies.map(o => `<option value="${o.id}">${o.name}${o.address ? ' — ' + o.address : ''}</option>`).join('') +
+    '<option value="__dist">🚚 Distributor / Staff Access</option>';
 }
 
 // ── Login flow ────────────────────────────────────────────────────────────────
@@ -165,7 +142,7 @@ const btn    = document.getElementById('sign-in');
 
 async function doLogin() {
   const name = nameEl.value.trim();
-  const officeRaw = document.getElementById('office-sel').value;
+  const companyRaw = document.getElementById('company-sel').value;
   if (!name) { msgEl.innerHTML = '<div class="alert alert-err">Please enter your name.</div>'; return; }
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Signing in…';
   msgEl.innerHTML = '';
@@ -173,8 +150,8 @@ async function doLogin() {
   const body = { name };
   const pw = pwEl.value.trim();
   if (pw) body.password = pw;
-  // Distributor option sends no office_id
-  if (officeRaw && officeRaw !== '__dist') body.office_id = officeRaw;
+  // Distributor/staff option sends no company_id
+  if (companyRaw && companyRaw !== '__dist') body.company_id = companyRaw;
 
   const [status, data] = await API.publicPost('/login', body);
   btn.disabled = false; btn.textContent = 'SIGN IN';
@@ -183,12 +160,7 @@ async function doLogin() {
 
   if (data.success) {
     Auth.setSession(data);
-    const role = data.role;
-    if (role === 'main_admin') location.href = '/admin';
-    else if (role === 'office_admin') location.href = '/office-admin';
-    else if (role === 'office_hr') location.href = '/hr';
-    else if (['company_admin','distributor_staff'].includes(role)) location.href = '/distributor';
-    else location.href = '/order';
+    location.href = Auth.homeFor(data.role, data.company_mode);
   } else if (data.password_required) {
     msgEl.innerHTML = '<div class="alert alert-warn">Password required — please enter your password.</div>';
     pwEl.focus();
@@ -199,30 +171,6 @@ async function doLogin() {
 
 btn.addEventListener('click', doLogin);
 [nameEl, pwEl].forEach(el => el.addEventListener('keydown', e => e.key === 'Enter' && doLogin()));
-
-// ── Request office ────────────────────────────────────────────────────────────
-document.getElementById('req-toggle').onclick = () => {
-  const f = document.getElementById('req-form');
-  f.style.display = f.style.display === 'none' ? '' : 'none';
-};
-document.getElementById('req-submit').onclick = async () => {
-  const office_name    = document.getElementById('req-office-name').value.trim();
-  const requester_name = document.getElementById('req-your-name').value.trim();
-  const contact_info   = document.getElementById('req-contact').value.trim();
-  const reqMsg = document.getElementById('req-msg');
-  if (!office_name || !requester_name) {
-    reqMsg.innerHTML = '<div class="alert alert-warn">Office name and your name are required.</div>'; return;
-  }
-  const [s, d] = await API.publicPost('/request-office', { office_name, requester_name, contact_info });
-  if (s === 200 && d.success) {
-    reqMsg.innerHTML = `<div class="alert alert-ok">${d.message}</div>`;
-    document.getElementById('req-office-name').value = '';
-    document.getElementById('req-your-name').value = '';
-    document.getElementById('req-contact').value = '';
-  } else {
-    reqMsg.innerHTML = `<div class="alert alert-err">${d.detail || 'Error.'}</div>`;
-  }
-};
 
 init();
 </script>

@@ -7,7 +7,7 @@ from typing import Optional
 class LoginRequest(BaseModel):
     name: str
     password: str | None = None
-    office_id: str | None = None
+    company_id: str | None = None
 
 
 class LoginResponse(BaseModel):
@@ -17,21 +17,18 @@ class LoginResponse(BaseModel):
     token: str | None = None
     password_required: bool = False
     nickname: str | None = None
-    role: str = "user"
-    office_id: str | None = None
-    office_name: str | None = None
+    role: str = "employee"
     company_id: str | None = None
-    position: str | None = None
+    company_name: str | None = None
+    company_mode: str | None = None
 
 
 class AuthUser(BaseModel):
     id: int
     name: str
     token: str
-    role: str = "user"
-    office_id: str | None = None
+    role: str = "employee"
     company_id: str | None = None
-    position: str | None = None
     nickname: str | None = None
 
 
@@ -51,86 +48,105 @@ class SetupResponse(BaseModel):
     message: str
 
 
-# ── Office Requests ───────────────────────────────────────────────────────────
+# ── Companies ─────────────────────────────────────────────────────────────────
 
-class OfficeRequestCreate(BaseModel):
-    office_name: str
-    requester_name: str
-    contact_info: str
-
-
-class OfficeRequestOut(BaseModel):
-    id: str
-    office_name: str
-    requester_name: str
-    contact_info: str
-    status: str
-    created_at: str
-
-
-# ── Offices ───────────────────────────────────────────────────────────────────
-
-class OfficeOut(BaseModel):
+class CompanyOut(BaseModel):
     id: str
     name: str
     slug: str
+    mode: str
+    address: str = ""
+    distributor_id: str | None = None
     is_active: bool
 
 
-class CreateOfficeRequest(BaseModel):
+class CreateCompanyRequest(BaseModel):
     name: str
     slug: str
+    mode: str
+    address: str = ""
+    distributor_id: str | None = None
 
 
-class UpdateOfficeRequest(BaseModel):
-    office_id: str
+class UpdateCompanyRequest(BaseModel):
+    company_id: str
     name: str
 
 
-class OfficeActiveRequest(BaseModel):
-    office_id: str
+class UpdateCompanyAddressRequest(BaseModel):
+    company_id: str
+    address: str
+
+
+class SetMyAddressRequest(BaseModel):
+    address: str
+
+
+class CompanyActiveRequest(BaseModel):
+    company_id: str
     is_active: bool
 
 
-class CreateFullOfficeRequest(BaseModel):
+class SetCompanyDistributorRequest(BaseModel):
+    company_id: str
+    distributor_id: str
+
+
+class SetCompanyModeRequest(BaseModel):
+    company_id: str
+    mode: str
+
+
+class RegisterCompanyRequest(BaseModel):
     name: str
     slug: str
-    employee_names: list[str] = []
-    admin_names: list[str] = []
+    mode: str                              # "company" | "distributor"
+    address: str = ""                      # differentiates branches sharing the same `name`
+    distributor_id: str | None = None      # required if mode == "company"
+    admin_name: str
+    admin_password: str | None = None      # if omitted, admin sets password on first login
+    manager_names: list[str] = []
     hr_names: list[str] = []
-    approve_request_id: str | None = None
+    staff_names: list[str] = []            # employees (company mode) or distributor boys (distributor mode)
+    enabled_product_ids: list[str] = []    # distributor product ids to enable (company mode only)
 
 
-class CreateFullOfficeResponse(BaseModel):
+class RegisterCompanyResponse(BaseModel):
     success: bool
-    office_id: str
+    company_id: str
     name: str
     message: str
 
 
-# ── Products ──────────────────────────────────────────────────────────────────
+# ── Distributor Products / Pricing ───────────────────────────────────────────
 
-class ProductOut(BaseModel):
+class DistributorProductOut(BaseModel):
     id: str
     name: str
     emoji: str
+    current_price: float
     max_qty: int
     is_active: bool
-    sort_order: int
 
 
-class AddProductRequest(BaseModel):
-    office_id: str
+class AddDistributorProductRequest(BaseModel):
+    company_id: str
     name: str
     emoji: str
+    price: float
     max_qty: int
 
 
-class UpdateProductRequest(BaseModel):
+class UpdateDistributorProductRequest(BaseModel):
     product_id: str
     name: str
     emoji: str
     max_qty: int
+
+
+class UpdateProductPriceRequest(BaseModel):
+    product_id: str
+    new_price: float
 
 
 class ProductActiveRequest(BaseModel):
@@ -138,11 +154,59 @@ class ProductActiveRequest(BaseModel):
     is_active: bool
 
 
+class PriceHistoryEntry(BaseModel):
+    id: str
+    price: float
+    changed_by_user_id: int | None = None
+    effective_at: str
+
+
+class PriceHistoryResponse(BaseModel):
+    history: list[PriceHistoryEntry]
+
+
+# ── Company Product Enablement ───────────────────────────────────────────────
+
+class CompanyProductOut(BaseModel):
+    distributor_product_id: str
+    name: str
+    emoji: str
+    price: float
+    max_qty: int
+    is_enabled: bool
+
+
+class EnableCompanyProductRequest(BaseModel):
+    distributor_product_id: str
+    max_qty_override: int | None = None
+
+
+class DisableCompanyProductRequest(BaseModel):
+    distributor_product_id: str
+
+
+class SetCompanyProductMaxQtyRequest(BaseModel):
+    distributor_product_id: str
+    max_qty: int | None = None
+
+
 # ── Votes / Orders ────────────────────────────────────────────────────────────
 
 class VoteRequest(BaseModel):
     product_id: str
     qty: int
+    date: str | None = None
+
+
+class EditVoteRequest(BaseModel):
+    product_id: str
+    qty: int
+    date: str | None = None
+
+
+class VoteActionResponse(BaseModel):
+    success: bool
+    message: str
 
 
 class ProductTotal(BaseModel):
@@ -160,6 +224,8 @@ class VoteMeResponse(BaseModel):
     product_name: str
     product_emoji: str
     qty: int
+    date: str
+    status: str
 
 
 class OrderDetail(BaseModel):
@@ -167,12 +233,27 @@ class OrderDetail(BaseModel):
     product_name: str
     product_emoji: str
     qty: int
+    status: str = "delivered"
 
 
 class OrdersBreakdownResponse(BaseModel):
     orders: list[OrderDetail]
     totals: dict[str, ProductTotal]
     order_count: int
+
+
+class MyOrderEntry(BaseModel):
+    id: str
+    date: str
+    product_id: str
+    product_name: str
+    product_emoji: str
+    qty: int
+    status: str
+
+
+class MyOrdersResponse(BaseModel):
+    orders: list[MyOrderEntry]
 
 
 # ── Chat ──────────────────────────────────────────────────────────────────────
@@ -185,7 +266,7 @@ class ChatMessageOut(BaseModel):
 # ── Admin / Shared ────────────────────────────────────────────────────────────
 
 class ResetRequest(BaseModel):
-    office_id: str | None = None
+    company_id: str | None = None
 
 
 class UnbindRequest(BaseModel):
@@ -209,7 +290,7 @@ class RemoveOrderResponse(BaseModel):
 
 
 class RemoveAllLoginsRequest(BaseModel):
-    office_id: str | None = None
+    company_id: str | None = None
 
 
 class RemoveAllLoginsResponse(BaseModel):
@@ -246,35 +327,11 @@ class UpdateUserNameResponse(BaseModel):
     message: str
 
 
-class AllowedNamesResponse(BaseModel):
-    names: list[str]
-
-
-class AddAllowedNameRequest(BaseModel):
-    name: str
-    office_id: str | None = None
-
-
-class AddAllowedNameResponse(BaseModel):
-    success: bool
-    name: str
-    message: str
-
-
-class RemoveAllowedNameRequest(BaseModel):
-    name: str
-
-
-class RemoveAllowedNameResponse(BaseModel):
-    success: bool
-    name: str
-    message: str
-
-
 class PlaceOrderForUserRequest(BaseModel):
     name: str
     product_id: str
     qty: int
+    date: str | None = None
 
 
 class PlaceOrderForUserResponse(BaseModel):
@@ -311,15 +368,29 @@ class UserOut(BaseModel):
     id: int
     name: str
     role: str
-    office_id: str | None = None
     company_id: str | None = None
-    position: str | None = None
     is_disabled: int
     nickname: str | None = None
 
 
 class UsersListResponse(BaseModel):
     users: list[UserOut]
+
+
+class AddCompanyMemberRequest(BaseModel):
+    name: str
+    company_id: str
+    role: str
+
+
+class AddCompanyMemberResponse(BaseModel):
+    success: bool
+    name: str
+    message: str
+
+
+class RemoveCompanyMemberRequest(BaseModel):
+    user_id: int
 
 
 # ── Stats ─────────────────────────────────────────────────────────────────────
@@ -376,48 +447,51 @@ class UserNamesResponse(BaseModel):
 
 # ── Distributor ───────────────────────────────────────────────────────────────
 
-class DistributorCompanyOut(BaseModel):
+class ProductSummaryRow(BaseModel):
+    product_name: str
+    delivered_qty: int
+    delivered_count: int
+    pending_qty: int
+    pending_count: int
+
+
+class CompanySummaryRow(BaseModel):
+    company_name: str
+    delivered_qty: int
+    delivered_count: int
+    pending_qty: int
+    pending_count: int
+
+
+class UserSummaryRow(BaseModel):
+    user_name: str
+    delivered_qty: int
+    delivered_count: int
+    pending_qty: int
+    pending_count: int
+
+
+class DistributorOrderSummaryResponse(BaseModel):
+    by_product: list[ProductSummaryRow]
+    by_company: list[CompanySummaryRow]
+    by_user: list[UserSummaryRow]
+
+
+class PendingOrderRow(BaseModel):
     id: str
-    name: str
-    office_id: str
-    is_active: bool
-
-
-class CreateCompanyRequest(BaseModel):
-    name: str
-    office_id: str
-
-
-class PositionOut(BaseModel):
-    id: str
-    name: str
-    level: int
-
-
-class AddPositionRequest(BaseModel):
+    user_name: str
+    company_name: str
     company_id: str
-    name: str
-    level: int
+    product_name: str
+    product_emoji: str
+    qty: int
+    date: str
 
 
-class RemovePositionRequest(BaseModel):
-    position_id: str
+class PendingOrdersResponse(BaseModel):
+    orders: list[PendingOrderRow]
 
 
-class DistributorStaffOut(BaseModel):
-    id: int
-    name: str
-    role: str
-    position: str | None = None
-    is_disabled: int
-
-
-class AddStaffRequest(BaseModel):
-    company_id: str
-    name: str
-    role: str
-    position: str
-
-
-class RemoveStaffRequest(BaseModel):
-    user_id: int
+class DeliverOrderResponse(BaseModel):
+    success: bool
+    message: str
