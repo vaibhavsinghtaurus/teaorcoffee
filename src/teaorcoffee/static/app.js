@@ -104,7 +104,9 @@ function initTabs(containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
   const btns = el.querySelectorAll('.tab-btn');
-  const panes = el.querySelectorAll('.tab-pane');
+  // .tab-pane elements are siblings of the tabs nav bar, not children of it —
+  // must search the whole document, not just inside `el`.
+  const panes = document.querySelectorAll('.tab-pane');
   btns.forEach((btn, i) => {
     btn.onclick = () => {
       btns.forEach(b => b.classList.remove('active'));

@@ -33,7 +33,7 @@
         <button class="btn btn-sm" id="load-deliveries">🔄 Refresh</button>
       </div>
     </div>
-    <div class="table-wrap"><table><thead><tr><th>Company</th><th>Employee</th><th>Product</th><th>Qty</th><th>Date</th><th></th></tr></thead><tbody id="deliv-tbody"></tbody></table></div>
+    <div class="table-wrap"><table><thead><tr><th>Company</th><th>Address</th><th>Employee</th><th>Product</th><th>Qty</th><th>Date</th><th></th></tr></thead><tbody id="deliv-tbody"></tbody></table></div>
   </div>
 
   <!-- ORDER SUMMARY -->
@@ -48,7 +48,7 @@
     <h4>By Product</h4>
     <div class="table-wrap mb16"><table><thead><tr><th>Product</th><th>Delivered</th><th>Pending</th></tr></thead><tbody id="summary-product-tbody"></tbody></table></div>
     <h4>By Company</h4>
-    <div class="table-wrap mb16"><table><thead><tr><th>Company</th><th>Delivered</th><th>Pending</th></tr></thead><tbody id="summary-company-tbody"></tbody></table></div>
+    <div class="table-wrap mb16"><table><thead><tr><th>Company</th><th>Address</th><th>Delivered</th><th>Pending</th></tr></thead><tbody id="summary-company-tbody"></tbody></table></div>
     <h4>By User</h4>
     <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Delivered</th><th>Pending</th></tr></thead><tbody id="summary-user-tbody"></tbody></table></div>
   </div>
@@ -139,9 +139,9 @@ async function loadDeliveries() {
   if (s !== 200) { Toast.err(d.detail || 'Failed.'); return; }
   const orders = d.orders || [];
   document.getElementById('deliv-tbody').innerHTML = orders.map(o => `
-    <tr><td>${o.company_name}</td><td>${o.user_name}</td><td>${o.product_emoji} ${o.product_name}</td><td>${o.qty}</td><td>${o.date}</td>
+    <tr><td>${o.company_name}</td><td style="color:var(--muted)">${o.company_address || '—'}</td><td>${o.user_name}</td><td>${o.product_emoji} ${o.product_name}</td><td>${o.qty}</td><td>${o.date}</td>
     <td><button class="btn btn-sm btn-primary" data-deliver="${o.id}">✅ Mark Delivered</button></td></tr>
-  `).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted)">Nothing pending 🎉</td></tr>';
+  `).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--muted)">Nothing pending 🎉</td></tr>';
   document.querySelectorAll('[data-deliver]').forEach(btn => btn.addEventListener('click', async () => {
     const [s2, d2] = await API.post(`/distributor/orders/${btn.dataset.deliver}/deliver`, {});
     if (s2 === 200) { Toast.ok('Marked delivered!'); loadDeliveries(); }
@@ -162,7 +162,7 @@ async function loadSummary() {
     r => r.product_name, r => `${r.delivered_qty} (${r.delivered_count} orders)`, r => `${r.pending_qty} (${r.pending_count} orders)`,
   ]);
   renderTable('summary-company-tbody', d.by_company || [], [
-    r => r.company_name, r => `${r.delivered_qty} (${r.delivered_count} orders)`, r => `${r.pending_qty} (${r.pending_count} orders)`,
+    r => r.company_name, r => r.company_address || '—', r => `${r.delivered_qty} (${r.delivered_count} orders)`, r => `${r.pending_qty} (${r.pending_count} orders)`,
   ]);
   renderTable('summary-user-tbody', d.by_user || [], [
     r => r.user_name, r => `${r.delivered_qty} (${r.delivered_count} orders)`, r => `${r.pending_qty} (${r.pending_count} orders)`,

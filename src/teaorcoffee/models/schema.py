@@ -441,6 +441,7 @@ class ProductSummaryRow(BaseModel):
 
 class CompanySummaryRow(BaseModel):
     company_name: str
+    company_address: str = ""
     delivered_qty: int
     delivered_count: int
     pending_qty: int
@@ -465,6 +466,7 @@ class PendingOrderRow(BaseModel):
     id: str
     user_name: str
     company_name: str
+    company_address: str = ""
     company_id: str
     product_name: str
     product_emoji: str

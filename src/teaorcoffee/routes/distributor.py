@@ -224,7 +224,8 @@ async def pending_orders(buyer_company_id: str | None = None, distributor_id: st
     scope = _check_view(user, distributor_id)
     rows = await db.get_pending_orders_for_distributor(scope, buyer_company_id)
     return PendingOrdersResponse(orders=[PendingOrderRow(
-        id=r["_id"], user_name=r["user_name"], company_name=r["company_name"], company_id=r["company_id"],
+        id=r["_id"], user_name=r["user_name"], company_name=r["company_name"],
+        company_address=r.get("company_address", ""), company_id=r["company_id"],
         product_name=r["product_name"], product_emoji=r["product_emoji"], qty=r["qty"], date=r["date"],
     ) for r in rows])
 

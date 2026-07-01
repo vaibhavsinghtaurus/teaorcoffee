@@ -12,10 +12,6 @@ def _oid(id_str: str) -> ObjectId:
         return ObjectId()
 
 
-def _branch_label(company: dict) -> str:
-    """Disambiguate branches that share the same company name."""
-    address = company.get("address")
-    return f'{company["name"]} — {address}' if address else company["name"]
 
 
 class MongoDatabase:
@@ -139,6 +135,15 @@ class MongoDatabase:
 
     async def get_company_by_slug(self, slug: str) -> Optional[dict]:
         doc = await self.companies.find_one({"slug": slug})
+        if doc:
+            doc["id"] = str(doc["_id"])
+        return doc
+
+    async def get_company_by_name(self, name: str, mode: Optional[str] = None) -> Optional[dict]:
+        query: dict = {"name": name}
+        if mode:
+            query["mode"] = mode
+        doc = await self.companies.find_one(query)
         if doc:
             doc["id"] = str(doc["_id"])
         return doc
@@ -572,7 +577,7 @@ class MongoDatabase:
         if company_id:
             buyer_query["_id"] = _oid(company_id)
         buyers = {
-            str(c["_id"]): _branch_label(c)
+            str(c["_id"]): {"name": c["name"], "address": c.get("address", "")}
             async for c in self.companies.find(buyer_query, {"_id": 1, "name": 1, "address": 1})
         }
         if not buyers:
@@ -586,7 +591,9 @@ class MongoDatabase:
         ]
         rows = [doc async for doc in self.votes.aggregate(pipeline)]
         for r in rows:
-            r["company_name"] = buyers.get(r["company_id"], "")
+            buyer = buyers.get(r["company_id"], {"name": "", "address": ""})
+            r["company_name"] = buyer["name"]
+            r["company_address"] = buyer["address"]
         rows.sort(key=lambda r: (r["company_name"], r["user_name"]))
         return rows
 
@@ -693,9 +700,12 @@ class MongoDatabase:
 
     async def get_distributor_order_summary(self, distributor_company_id: str, date_str: Optional[str] = None) -> dict:
         date_str = date_str or self._today()
-        buyers = {str(c["_id"]): _branch_label(c) async for c in self.companies.find(
-            {"distributor_id": distributor_company_id, "mode": "company"}, {"_id": 1, "name": 1, "address": 1},
-        )}
+        buyers = {
+            str(c["_id"]): {"name": c["name"], "address": c.get("address", "")}
+            async for c in self.companies.find(
+                {"distributor_id": distributor_company_id, "mode": "company"}, {"_id": 1, "name": 1, "address": 1},
+            )
+        }
         if not buyers:
             return {"by_product": [], "by_company": [], "by_user": []}
 
@@ -733,11 +743,14 @@ class MongoDatabase:
                 "pending_count": {"$sum": {"$cond": [{"$eq": ["$status", "pending"]}, 1, 0]}},
             }},
         ]
-        by_company = [
-            {"company_name": buyers.get(doc["_id"], ""), "delivered_qty": doc["delivered_qty"], "delivered_count": doc["delivered_count"],
-             "pending_qty": doc["pending_qty"], "pending_count": doc["pending_count"]}
-            async for doc in self.votes.aggregate(by_company_pipeline)
-        ]
+        by_company = []
+        async for doc in self.votes.aggregate(by_company_pipeline):
+            buyer = buyers.get(doc["_id"], {"name": "", "address": ""})
+            by_company.append({
+                "company_name": buyer["name"], "company_address": buyer["address"],
+                "delivered_qty": doc["delivered_qty"], "delivered_count": doc["delivered_count"],
+                "pending_qty": doc["pending_qty"], "pending_count": doc["pending_count"],
+            })
         by_company.sort(key=lambda r: r["company_name"])
 
         by_user_pipeline = [
