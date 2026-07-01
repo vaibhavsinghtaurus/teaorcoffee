@@ -32,22 +32,6 @@ class AuthUser(BaseModel):
     nickname: str | None = None
 
 
-# ── Setup ─────────────────────────────────────────────────────────────────────
-
-class SetupStatusResponse(BaseModel):
-    needs_setup: bool
-
-
-class SetupRequest(BaseModel):
-    name: str
-    password: str
-
-
-class SetupResponse(BaseModel):
-    success: bool
-    message: str
-
-
 # ── Companies ─────────────────────────────────────────────────────────────────
 
 class CompanyOut(BaseModel):

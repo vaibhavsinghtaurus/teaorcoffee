@@ -77,17 +77,6 @@ class MongoDatabase:
     def _today(self) -> str:
         return date.today().isoformat()
 
-    # ── Setup / Super Admin ──────────────────────────────────────────────────────
-
-    async def has_super_admin(self) -> bool:
-        return await self.users.count_documents({"role": "super_admin"}) > 0
-
-    async def get_super_admin(self) -> Optional[dict]:
-        user = await self.users.find_one({"role": "super_admin"})
-        if user:
-            user["id"] = user["_id"]
-        return user
-
     # ── Companies ─────────────────────────────────────────────────────────────────
 
     async def create_company(self, name: str, slug: str, mode: str,

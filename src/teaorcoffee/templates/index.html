@@ -9,25 +9,8 @@
 <div id="toasts"></div>
 <div class="login-wrap">
 
-  <!-- ── SETUP CARD (shown only if no main admin exists) ── -->
-  <div class="login-card card" id="setup-card" style="display:none">
-    <div class="login-logo">☕</div>
-    <div class="login-title">Tea or Coffee</div>
-    <div class="login-sub" style="margin-bottom:8px">First-Time Setup</div>
-    <div class="alert alert-info mb16">No super admin has been configured yet. Set one up to get started.</div>
-    <div class="form-group"><label class="form-label">Your Name</label>
-      <input id="setup-name" placeholder="e.g. Vaibhav" autocomplete="username"></div>
-    <div class="form-group"><label class="form-label">Set Your Password</label>
-      <input id="setup-pw" type="password" placeholder="Choose a password…" autocomplete="new-password"></div>
-    <div id="setup-msg"></div>
-    <button class="btn btn-primary btn-full mt8" id="setup-btn">CREATE SUPER ADMIN</button>
-    <div style="text-align:right;margin-top:12px">
-      <button class="btn btn-sm" id="setup-theme-btn"></button>
-    </div>
-  </div>
-
   <!-- ── LOGIN CARD ── -->
-  <div class="login-card card" id="login-card" style="display:none">
+  <div class="login-card card" id="login-card">
     <div class="login-logo">☕</div>
     <div class="login-title">Tea or Coffee</div>
     <div class="login-sub">Sign in to place your order</div>
@@ -69,57 +52,8 @@ if (Auth.getToken()) {
   location.href = Auth.homeFor(user.role, user.company_mode);
 }
 
-// Wire up theme buttons for both cards
 document.getElementById('theme-btn').onclick = () => Theme.toggle();
-document.getElementById('setup-theme-btn').onclick = () => Theme.toggle();
-
-// ── Bootstrap: check setup status, then load companies ───────────────────────
-async function init() {
-  const [s, d] = await API.publicGet('/setup/status');
-  if (s !== 200) {
-    // Can't reach server — show login anyway
-    showLogin();
-    return;
-  }
-  if (d.needs_setup) {
-    showSetup();
-  } else {
-    await loadCompanies();
-    showLogin();
-  }
-}
-
-function showSetup() {
-  document.getElementById('setup-card').style.display = '';
-  document.getElementById('login-card').style.display = 'none';
-  Theme.applyBtn('setup-theme-btn');
-}
-
-function showLogin() {
-  document.getElementById('setup-card').style.display = 'none';
-  document.getElementById('login-card').style.display = '';
-  Theme.applyBtn('theme-btn');
-  document.getElementById('name').focus();
-}
-
-// ── Setup flow ────────────────────────────────────────────────────────────────
-document.getElementById('setup-btn').onclick = async () => {
-  const name = document.getElementById('setup-name').value.trim();
-  const pw   = document.getElementById('setup-pw').value;
-  const msg  = document.getElementById('setup-msg');
-  if (!name || !pw) { msg.innerHTML = '<div class="alert alert-warn">Fill all fields.</div>'; return; }
-  const btn = document.getElementById('setup-btn');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
-  const [s, d] = await API.publicPost('/setup', { name, password: pw });
-  btn.disabled = false; btn.textContent = 'CREATE SUPER ADMIN';
-  if (s === 200 && d.success) {
-    msg.innerHTML = `<div class="alert alert-ok">${d.message}</div>`;
-    setTimeout(async () => { await loadCompanies(); showLogin(); }, 1200);
-  } else {
-    msg.innerHTML = `<div class="alert alert-err">${d.detail || d.message || 'Error.'}</div>`;
-  }
-};
-document.getElementById('setup-pw').addEventListener('keydown', e => e.key === 'Enter' && document.getElementById('setup-btn').click());
+document.getElementById('name').focus();
 
 // ── Load active companies ─────────────────────────────────────────────────────
 async function loadCompanies() {
@@ -172,7 +106,7 @@ async function doLogin() {
 btn.addEventListener('click', doLogin);
 [nameEl, pwEl].forEach(el => el.addEventListener('keydown', e => e.key === 'Enter' && doLogin()));
 
-init();
+loadCompanies();
 </script>
 </body>
 </html>

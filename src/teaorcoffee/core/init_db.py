@@ -133,7 +133,13 @@ async def _seed_defaults():
         await db.enable_company_product(implevision_id, p["id"])
 
     for name, role in _SPECIAL_ROLES.items():
-        await db.add_company_member(name, implevision_id, role)
+        created = await db.add_company_member(name, implevision_id, role)
+        if not created:
+            # Already existed (e.g. migrated from the old schema as a plain employee) —
+            # promote to their intended role, but only if nobody has since customized it.
+            user = await db.get_user_by_name(name)
+            if user and user.get("company_id") == implevision_id and user.get("role") == "employee":
+                await db.set_user_role(int(user["id"]), role)
     await db.add_company_members(_DEFAULT_EMPLOYEE_NAMES, implevision_id, "employee")
 
     # Backfill missing fields on any pre-existing users

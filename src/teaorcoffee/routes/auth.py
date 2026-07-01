@@ -5,49 +5,12 @@ from datetime import datetime
 
 from src.teaorcoffee.models.schema import (
     LoginRequest, LoginResponse,
-    SetupStatusResponse, SetupRequest, SetupResponse,
     CompanyOut, RegisterCompanyRequest, RegisterCompanyResponse,
     DistributorProductOut,
 )
 from src.teaorcoffee.core.database import db
 
 router = APIRouter(tags=["Authentication"])
-
-
-# ── Setup ─────────────────────────────────────────────────────────────────────
-
-@router.get("/setup/status", response_model=SetupStatusResponse)
-async def setup_status():
-    """Returns whether initial super admin setup is still needed."""
-    return SetupStatusResponse(needs_setup=not await db.has_super_admin())
-
-
-@router.post("/setup", response_model=SetupResponse)
-async def setup_super_admin(request: SetupRequest):
-    """Create the first super admin. Fails if one already exists."""
-    if await db.has_super_admin():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Super admin already exists.")
-    name = request.name.strip()
-    if not name:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Name cannot be empty.")
-    if not request.password or len(request.password) < 4:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be at least 4 characters.")
-
-    password_hash = bcrypt.hashpw(request.password.encode(), bcrypt.gensalt()).decode()
-    user = await db.get_user_by_name(name)
-    if user:
-        if user.get("password_hash"):
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"'{name}' already has an account.")
-        await db.set_password_hash(int(user["id"]), password_hash)
-        await db.set_user_role(int(user["id"]), "super_admin")
-    else:
-        next_id = await db._next_user_id()
-        await db.users.insert_one({
-            "_id": next_id, "name": name, "company_id": None, "role": "super_admin",
-            "is_active": 1, "is_disabled": 0, "session_token": None, "last_login_at": None,
-            "password_hash": password_hash,
-        })
-    return SetupResponse(success=True, message=f"Super admin '{name}' created successfully.")
 
 
 # ── Public: active companies / distributors ──────────────────────────────────
