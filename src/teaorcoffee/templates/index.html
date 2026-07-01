@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Tea or Coffee — Sign In</title>
-<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 <div id="toasts"></div>
@@ -77,7 +77,7 @@
 
 </div><!-- /login-wrap -->
 
-<script src="/app.js"></script>
+<script src="/static/app.js"></script>
 <script>
 Theme.init();
 
@@ -85,11 +85,11 @@ Theme.init();
 if (Auth.getToken()) {
   const user = Auth.getUser();
   const role = user.role;
-  if (role === 'main_admin') location.href = '/admin.html';
-  else if (role === 'office_admin') location.href = '/office_admin.html';
-  else if (role === 'office_hr') location.href = '/hr.html';
-  else if (['company_admin','distributor_staff'].includes(role)) location.href = '/distributor.html';
-  else location.href = '/order.html';
+  if (role === 'main_admin') location.href = '/admin';
+  else if (role === 'office_admin') location.href = '/office-admin';
+  else if (role === 'office_hr') location.href = '/hr';
+  else if (['company_admin','distributor_staff'].includes(role)) location.href = '/distributor';
+  else location.href = '/order';
 }
 
 // Wire up theme buttons for both cards
@@ -184,11 +184,11 @@ async function doLogin() {
   if (data.success) {
     Auth.setSession(data);
     const role = data.role;
-    if (role === 'main_admin') location.href = '/admin.html';
-    else if (role === 'office_admin') location.href = '/office_admin.html';
-    else if (role === 'office_hr') location.href = '/hr.html';
-    else if (['company_admin','distributor_staff'].includes(role)) location.href = '/distributor.html';
-    else location.href = '/order.html';
+    if (role === 'main_admin') location.href = '/admin';
+    else if (role === 'office_admin') location.href = '/office-admin';
+    else if (role === 'office_hr') location.href = '/hr';
+    else if (['company_admin','distributor_staff'].includes(role)) location.href = '/distributor';
+    else location.href = '/order';
   } else if (data.password_required) {
     msgEl.innerHTML = '<div class="alert alert-warn">Password required — please enter your password.</div>';
     pwEl.focus();

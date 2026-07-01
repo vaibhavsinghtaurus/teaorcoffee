@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Office Admin — Tea or Coffee</title>
-<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/static/style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -151,13 +151,13 @@
   </div>
 </div>
 
-<script src="/app.js"></script>
+<script src="/static/app.js"></script>
 <script>
 const sess = Auth.require(['main_admin','office_admin']);
 if (!sess) throw new Error('redirect');
 Theme.init();
 document.getElementById('office-tag').textContent = sess.office_name || 'Office';
-document.getElementById('back-btn').onclick = () => location.href = '/order.html';
+document.getElementById('back-btn').onclick = () => location.href = '/order';
 document.getElementById('logout-btn').onclick = () => Auth.clearSession();
 initTabs('tabs');
 

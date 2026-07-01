@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Order — Tea or Coffee</title>
-<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/static/style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -69,7 +69,7 @@
   <div id="votes-err" style="display:none" class="alert alert-warn mt8"></div>
 </div>
 
-<script src="/app.js"></script>
+<script src="/static/app.js"></script>
 <script>
 const sess = Auth.require();
 if (!sess) throw new Error('redirect');
@@ -79,13 +79,13 @@ Theme.init();
 document.getElementById('greeting').textContent = `Good day, ${sess.username}`;
 document.getElementById('office-tag').textContent = sess.office_name || 'Office';
 document.getElementById('chat-username').textContent = sess.username;
-document.getElementById('stats-btn').onclick = () => location.href = '/stats.html';
+document.getElementById('stats-btn').onclick = () => location.href = '/stats';
 document.getElementById('logout-btn').onclick = () => Auth.clearSession();
 
 const panelBtn = document.getElementById('panel-btn');
-if (sess.role === 'main_admin') { panelBtn.style.display = ''; panelBtn.textContent = '⚙️ Admin'; panelBtn.onclick = () => location.href = '/admin.html'; }
-else if (sess.role === 'office_admin') { panelBtn.style.display = ''; panelBtn.textContent = '🏢 Office'; panelBtn.onclick = () => location.href = '/office_admin.html'; }
-else if (sess.role === 'office_hr') { panelBtn.style.display = ''; panelBtn.textContent = '👔 HR'; panelBtn.onclick = () => location.href = '/hr.html'; }
+if (sess.role === 'main_admin') { panelBtn.style.display = ''; panelBtn.textContent = '⚙️ Admin'; panelBtn.onclick = () => location.href = '/admin'; }
+else if (sess.role === 'office_admin') { panelBtn.style.display = ''; panelBtn.textContent = '🏢 Office'; panelBtn.onclick = () => location.href = '/office-admin'; }
+else if (sess.role === 'office_hr') { panelBtn.style.display = ''; panelBtn.textContent = '👔 HR'; panelBtn.onclick = () => location.href = '/hr'; }
 
 // Products
 let products = [], myVote = null;

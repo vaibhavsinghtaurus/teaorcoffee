@@ -8,9 +8,9 @@ from src.teaorcoffee.core.database import db
 from src.teaorcoffee.core.config import settings
 from src.teaorcoffee.core.init_db import initialize_database
 from src.teaorcoffee.routes import health, votes, admin, hr, websocket, chat, auth, stats
-from src.teaorcoffee.routes import office_admin, distributor, products
+from src.teaorcoffee.routes import office_admin, distributor, products, pages
 
-_FRONTEND = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "frontend")
+_STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 
 
 @asynccontextmanager
@@ -36,6 +36,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.mount("/static", StaticFiles(directory=_STATIC), name="static")
+
+app.include_router(pages.router)
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(votes.router)
@@ -47,6 +50,3 @@ app.include_router(distributor.router)
 app.include_router(products.router)
 app.include_router(websocket.router)
 app.include_router(chat.router)
-
-if os.path.isdir(_FRONTEND):
-    app.mount("/", StaticFiles(directory=_FRONTEND, html=True), name="frontend")
