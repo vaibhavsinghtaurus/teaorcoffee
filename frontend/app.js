@@ -38,18 +38,17 @@ const API = {
   put:  (path, body) => API._fetch(path, { method: 'PUT',  body: JSON.stringify(body) }),
   del:  (path, body) => API._fetch(path, { method: 'DELETE', body: JSON.stringify(body) }),
 
-  // Admin password endpoints (no Bearer)
-  async adminGet(path, params) {
-    const url = path + '?' + new URLSearchParams(params).toString();
+  // Public endpoints (no Authorization header)
+  async publicGet(path) {
     try {
-      const res = await fetch(url);
+      const res = await fetch(path, { headers: { 'Content-Type': 'application/json' } });
       const data = await res.json().catch(() => ({}));
       return [res.status, data];
     } catch (e) { return [0, { detail: e.message }]; }
   },
-  async adminPost(path, body, method = 'POST') {
+  async publicPost(path, body) {
     try {
-      const res = await fetch(path, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await res.json().catch(() => ({}));
       return [res.status, data];
     } catch (e) { return [0, { detail: e.message }]; }
@@ -59,6 +58,10 @@ const API = {
 const Theme = {
   current: localStorage.getItem('toc_theme') || 'dark',
   apply() { document.documentElement.setAttribute('data-theme', this.current); },
+  applyBtn(id) {
+    const btn = document.getElementById(id);
+    if (btn) btn.textContent = this.current === 'dark' ? '☀️' : '🌙';
+  },
   toggle() {
     this.current = this.current === 'dark' ? 'light' : 'dark';
     localStorage.setItem('toc_theme', this.current);

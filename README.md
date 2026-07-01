@@ -9,50 +9,26 @@ Multi-office beverage ordering system with real-time updates, role-based access,
 | Layer | Tech |
 |---|---|
 | Backend API | FastAPI + Motor (async MongoDB) |
-| Frontend | Streamlit (multi-page) |
+| Frontend | Plain HTML / CSS / JS (served by FastAPI) |
 | Database | MongoDB |
 | Real-time | WebSocket (per-office broadcast) |
-| Auth | bcrypt passwords + session tokens (7-day expiry) |
+| Auth | bcrypt passwords + session tokens, stored in `localStorage` |
 
-The backend runs as a FastAPI server (`uvicorn`). When deployed on a single machine, `app.py` auto-starts the backend on port 8000 if it isn't already running.
+FastAPI serves both the API and the static frontend from the same process. No separate frontend server is needed.
 
 ---
 
 ## Environment Variables
 
-### Backend (FastAPI)
-
-Set these in a `.env` file at the project root, or as real environment variables. All variables are prefixed with `TOC_`.
+Set these in a `.env` file at the project root, or as real environment variables.
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `TOC_MONGODB_URI` | **Yes** | — | Full MongoDB connection string, e.g. `mongodb+srv://user:pass@cluster.mongodb.net/teaorcoffee` |
-| `TOC_ADMIN_PASS` | **Yes** | — | Master admin password used for all password-gated admin API calls |
-| `TOC_MAIN_ADMIN_NAME` | No | `Vaibhav` | Name of the user who is automatically assigned the `main_admin` role on startup |
+| `TOC_MONGODB_URI` | **Yes** | — | Full MongoDB connection string |
 
 Example `.env`:
 ```env
 TOC_MONGODB_URI=mongodb+srv://user:password@cluster.mongodb.net/teaorcoffee
-TOC_ADMIN_PASS=your-secure-admin-password
-TOC_MAIN_ADMIN_NAME=Vaibhav
-```
-
-### Frontend (Streamlit)
-
-Set via environment variable or Streamlit secrets (`secrets.toml`).
-
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `API_BASE_URL` | No | `http://localhost:8000` | Base URL of the FastAPI backend. Set this when the frontend and backend are on different hosts (e.g. cloud deployments). |
-
-Via environment variable:
-```env
-API_BASE_URL=https://your-api-domain.com
-```
-
-Via Streamlit secrets (`.streamlit/secrets.toml`):
-```toml
-API_BASE_URL = "https://your-api-domain.com"
 ```
 
 ---
@@ -76,31 +52,30 @@ API_BASE_URL = "https://your-api-domain.com"
 # Install dependencies
 poetry install
 
-# Start backend
+# Start the server (serves API + frontend on port 8000)
 uvicorn src.teaorcoffee.main:app --host 0.0.0.0 --port 8000 --reload
-
-# Start frontend (separate terminal)
-streamlit run app.py
 ```
 
-## Running with Docker (backend only)
+Open `http://localhost:8000` in your browser.
+
+## Running with Docker
 
 ```bash
 docker build -t teaorcoffee .
 docker run -p 8000:8000 \
   -e TOC_MONGODB_URI="mongodb+srv://..." \
-  -e TOC_ADMIN_PASS="your-password" \
+  -e ADMIN_PASS="your-password" \
   teaorcoffee
 ```
 
 ---
 
-## Database Seeding
+## First-Time Setup
 
-On first startup, the backend automatically:
+On first startup, the backend seeds the database:
 - Creates the **Implevision** office
 - Seeds default products: Tea 🍵 (max 2) and Coffee ☕ (max 1)
 - Seeds the allowed names list
-- Assigns `main_admin` role to the user matching `TOC_MAIN_ADMIN_NAME`
-- Assigns `office_hr` role to Ranjeet and Jimish
 - Migrates any old `{tea, coffee}` vote documents to the new flat schema
+
+On first visit to the app, a **setup screen** appears. Enter the name of a user already in the allowed list and choose a password — this creates the `main_admin` account. After setup, the normal login page is shown. Roles for all other users (office_admin, office_hr, etc.) are assigned via the Admin panel.

@@ -7,6 +7,7 @@ from typing import Optional
 class LoginRequest(BaseModel):
     name: str
     password: str | None = None
+    office_id: str | None = None
 
 
 class LoginResponse(BaseModel):
@@ -34,6 +35,39 @@ class AuthUser(BaseModel):
     nickname: str | None = None
 
 
+# ── Setup ─────────────────────────────────────────────────────────────────────
+
+class SetupStatusResponse(BaseModel):
+    needs_setup: bool
+
+
+class SetupRequest(BaseModel):
+    name: str
+    password: str
+
+
+class SetupResponse(BaseModel):
+    success: bool
+    message: str
+
+
+# ── Office Requests ───────────────────────────────────────────────────────────
+
+class OfficeRequestCreate(BaseModel):
+    office_name: str
+    requester_name: str
+    contact_info: str
+
+
+class OfficeRequestOut(BaseModel):
+    id: str
+    office_name: str
+    requester_name: str
+    contact_info: str
+    status: str
+    created_at: str
+
+
 # ── Offices ───────────────────────────────────────────────────────────────────
 
 class OfficeOut(BaseModel):
@@ -46,19 +80,32 @@ class OfficeOut(BaseModel):
 class CreateOfficeRequest(BaseModel):
     name: str
     slug: str
-    password: str
 
 
 class UpdateOfficeRequest(BaseModel):
     office_id: str
     name: str
-    password: str
 
 
 class OfficeActiveRequest(BaseModel):
     office_id: str
     is_active: bool
-    password: str
+
+
+class CreateFullOfficeRequest(BaseModel):
+    name: str
+    slug: str
+    employee_names: list[str] = []
+    admin_names: list[str] = []
+    hr_names: list[str] = []
+    approve_request_id: str | None = None
+
+
+class CreateFullOfficeResponse(BaseModel):
+    success: bool
+    office_id: str
+    name: str
+    message: str
 
 
 # ── Products ──────────────────────────────────────────────────────────────────
@@ -77,7 +124,6 @@ class AddProductRequest(BaseModel):
     name: str
     emoji: str
     max_qty: int
-    password: str
 
 
 class UpdateProductRequest(BaseModel):
@@ -85,13 +131,11 @@ class UpdateProductRequest(BaseModel):
     name: str
     emoji: str
     max_qty: int
-    password: str
 
 
 class ProductActiveRequest(BaseModel):
     product_id: str
     is_active: bool
-    password: str
 
 
 # ── Votes / Orders ────────────────────────────────────────────────────────────
@@ -140,18 +184,12 @@ class ChatMessageOut(BaseModel):
 
 # ── Admin / Shared ────────────────────────────────────────────────────────────
 
-class PasswordRequest(BaseModel):
-    password: str
-
-
 class ResetRequest(BaseModel):
-    password: str
     office_id: str | None = None
 
 
 class UnbindRequest(BaseModel):
     name: str
-    password: str
 
 
 class UnbindResponse(BaseModel):
@@ -162,7 +200,6 @@ class UnbindResponse(BaseModel):
 
 class RemoveOrderRequest(BaseModel):
     name: str
-    password: str
 
 
 class RemoveOrderResponse(BaseModel):
@@ -172,7 +209,6 @@ class RemoveOrderResponse(BaseModel):
 
 
 class RemoveAllLoginsRequest(BaseModel):
-    password: str
     office_id: str | None = None
 
 
@@ -184,7 +220,6 @@ class RemoveAllLoginsResponse(BaseModel):
 
 class SetUserDisabledRequest(BaseModel):
     name: str
-    password: str
     disabled: bool
 
 
@@ -202,7 +237,6 @@ class PendingPasswordUsersResponse(BaseModel):
 class UpdateUserNameRequest(BaseModel):
     old_name: str
     new_name: str
-    password: str
 
 
 class UpdateUserNameResponse(BaseModel):
@@ -218,7 +252,6 @@ class AllowedNamesResponse(BaseModel):
 
 class AddAllowedNameRequest(BaseModel):
     name: str
-    password: str
     office_id: str | None = None
 
 
@@ -230,7 +263,6 @@ class AddAllowedNameResponse(BaseModel):
 
 class RemoveAllowedNameRequest(BaseModel):
     name: str
-    password: str
 
 
 class RemoveAllowedNameResponse(BaseModel):
@@ -241,7 +273,6 @@ class RemoveAllowedNameResponse(BaseModel):
 
 class PlaceOrderForUserRequest(BaseModel):
     name: str
-    password: str
     product_id: str
     qty: int
 
@@ -255,7 +286,6 @@ class PlaceOrderForUserResponse(BaseModel):
 class SetNicknameRequest(BaseModel):
     name: str
     nickname: str | None = None
-    password: str
 
 
 class SetNicknameResponse(BaseModel):
@@ -268,7 +298,6 @@ class SetNicknameResponse(BaseModel):
 class SetUserRoleRequest(BaseModel):
     name: str
     role: str
-    password: str
 
 
 class SetUserRoleResponse(BaseModel):
@@ -357,7 +386,6 @@ class DistributorCompanyOut(BaseModel):
 class CreateCompanyRequest(BaseModel):
     name: str
     office_id: str
-    password: str
 
 
 class PositionOut(BaseModel):
@@ -370,12 +398,10 @@ class AddPositionRequest(BaseModel):
     company_id: str
     name: str
     level: int
-    password: str
 
 
 class RemovePositionRequest(BaseModel):
     position_id: str
-    password: str
 
 
 class DistributorStaffOut(BaseModel):
@@ -391,9 +417,7 @@ class AddStaffRequest(BaseModel):
     name: str
     role: str
     position: str
-    password: str
 
 
 class RemoveStaffRequest(BaseModel):
     user_id: int
-    password: str

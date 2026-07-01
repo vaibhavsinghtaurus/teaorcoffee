@@ -1,6 +1,5 @@
 import logging
 from src.teaorcoffee.core.database import db
-from src.teaorcoffee.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -16,12 +15,10 @@ _DEFAULT_PRODUCTS = [
     {"name": "Coffee", "emoji": "☕", "max_qty": 1},
 ]
 
-_DEFAULT_HR_NAMES = {"Ranjeet", "Jimish"}
-
 
 async def initialize_database():
-    if not settings.mongodb_uri:
-        logger.warning("TOC_MONGODB_URI not set — skipping DB initialization.")
+    if not db._db:
+        logger.warning("Database not initialized — skipping DB initialization.")
         return
 
     # ── Indexes ──────────────────────────────────────────────────────────────
@@ -60,16 +57,6 @@ async def initialize_database():
     await db.users.update_many({"is_disabled": {"$exists": False}}, {"$set": {"is_disabled": 0}})
     await db.users.update_many({"office_id": {"$exists": False}}, {"$set": {"office_id": implevision_id}})
     await db.users.update_many({"role": {"$exists": False}}, {"$set": {"role": "user"}})
-
-    # ── Set roles ─────────────────────────────────────────────────────────────
-    admin_user = await db.get_user_by_name(settings.main_admin_name)
-    if admin_user:
-        await db.set_user_role(int(admin_user["id"]), "main_admin")
-
-    for hr_name in _DEFAULT_HR_NAMES:
-        hr_user = await db.get_user_by_name(hr_name)
-        if hr_user and hr_user.get("role") == "user":
-            await db.set_user_role(int(hr_user["id"]), "office_hr")
 
     # ── Migrate old votes ─────────────────────────────────────────────────────
     if tea_p and coffee_p:

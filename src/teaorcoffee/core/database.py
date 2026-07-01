@@ -58,8 +58,23 @@ class MongoDatabase:
     def positions(self):
         return self._db["positions"]
 
+    @property
+    def office_requests(self):
+        return self._db["office_requests"]
+
     def _today(self) -> str:
         return date.today().isoformat()
+
+    # ── Setup / Main Admin ─────────────────────────────────────────────────────
+
+    async def has_main_admin(self) -> bool:
+        return await self.users.count_documents({"role": "main_admin"}) > 0
+
+    async def get_main_admin(self) -> Optional[dict]:
+        user = await self.users.find_one({"role": "main_admin"})
+        if user:
+            user["id"] = user["_id"]
+        return user
 
     # ── Offices ────────────────────────────────────────────────────────────────
 
@@ -78,6 +93,13 @@ class MongoDatabase:
     async def get_all_offices(self) -> list[dict]:
         result = []
         async for doc in self.offices.find({}, sort=[("name", 1)]):
+            doc["id"] = str(doc["_id"])
+            result.append(doc)
+        return result
+
+    async def get_active_offices(self) -> list[dict]:
+        result = []
+        async for doc in self.offices.find({"is_active": True}, sort=[("name", 1)]):
             doc["id"] = str(doc["_id"])
             result.append(doc)
         return result
@@ -547,6 +569,77 @@ class MongoDatabase:
     async def remove_distributor_staff(self, user_id: int) -> bool:
         r = await self.users.delete_one({"_id": user_id})
         return r.deleted_count > 0
+
+    # ── Office Requests ────────────────────────────────────────────────────────
+
+    async def create_office_request(self, office_name: str, requester_name: str, contact_info: str) -> str:
+        result = await self.office_requests.insert_one({
+            "office_name": office_name,
+            "requester_name": requester_name,
+            "contact_info": contact_info,
+            "status": "pending",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        return str(result.inserted_id)
+
+    async def get_office_requests(self, status: Optional[str] = None) -> list[dict]:
+        query: dict = {}
+        if status:
+            query["status"] = status
+        result = []
+        async for doc in self.office_requests.find(query, sort=[("created_at", -1)]):
+            doc["id"] = str(doc["_id"])
+            result.append(doc)
+        return result
+
+    async def update_office_request_status(self, request_id: str, status: str) -> bool:
+        r = await self.office_requests.update_one(
+            {"_id": _oid(request_id)},
+            {"$set": {"status": status, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        )
+        return r.matched_count > 0
+
+    async def get_office_request_by_id(self, request_id: str) -> Optional[dict]:
+        try:
+            doc = await self.office_requests.find_one({"_id": _oid(request_id)})
+        except Exception:
+            return None
+        if doc:
+            doc["id"] = str(doc["_id"])
+        return doc
+
+    async def count_pending_office_requests(self) -> int:
+        return await self.office_requests.count_documents({"status": "pending"})
+
+    # ── Full-office seeding ────────────────────────────────────────────────────
+
+    async def create_full_office(
+        self,
+        name: str,
+        slug: str,
+        employee_names: list[str],
+        admin_names: list[str],
+        hr_names: list[str],
+    ) -> dict:
+        office_id = await self.create_office(name, slug)
+        await self.seed_products(office_id, [
+            {"name": "Tea", "emoji": "🍵", "max_qty": 2},
+            {"name": "Coffee", "emoji": "☕", "max_qty": 1},
+        ])
+        all_names = list(dict.fromkeys(employee_names + admin_names + hr_names))
+        await self.seed_allowed_names(all_names, office_id)
+        await self.seed_users(all_names, office_id, role="user")
+        admin_set = set(admin_names)
+        hr_set = set(hr_names)
+        for uname in all_names:
+            user = await self.get_user_by_name(uname)
+            if not user:
+                continue
+            if uname in admin_set:
+                await self.set_user_role(int(user["id"]), "office_admin")
+            elif uname in hr_set:
+                await self.set_user_role(int(user["id"]), "office_hr")
+        return {"office_id": office_id, "name": name}
 
 
 db = MongoDatabase()
