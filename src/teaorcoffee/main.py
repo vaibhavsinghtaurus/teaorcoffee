@@ -15,6 +15,8 @@ _STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if not settings.mongodb_uri:
+        raise RuntimeError("TOC_MONGODB_URI environment variable is not set.")
     db.initialize(settings.mongodb_uri)
     await initialize_database()
     yield
