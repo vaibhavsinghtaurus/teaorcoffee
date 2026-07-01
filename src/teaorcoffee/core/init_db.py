@@ -17,7 +17,7 @@ _DEFAULT_PRODUCTS = [
 
 
 async def initialize_database():
-    if not db._db:
+    if db._db is None:
         logger.warning("Database not initialized — skipping DB initialization.")
         return
 
