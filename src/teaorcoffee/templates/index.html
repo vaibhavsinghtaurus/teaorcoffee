@@ -15,11 +15,11 @@
     <div class="login-title">Tea or Coffee</div>
     <div class="login-sub">Sign in to place your order</div>
 
-    <div class="form-group">
+    <div class="form-group" style="position:relative">
       <label class="form-label">Company</label>
-      <select id="company-sel">
-        <option value="">Loading companies…</option>
-      </select>
+      <input id="company-search" placeholder="Search company or office…" autocomplete="off">
+      <input type="hidden" id="company-sel-id" value="">
+      <div id="company-suggestions" class="autocomplete-list" style="display:none"></div>
     </div>
     <div class="form-group">
       <input id="name" placeholder="Your name or nickname…" autocomplete="username">
@@ -55,18 +55,38 @@ if (Auth.getToken()) {
 document.getElementById('theme-btn').onclick = () => Theme.toggle();
 document.getElementById('name').focus();
 
-// ── Load active companies ─────────────────────────────────────────────────────
+// ── Company search (autocomplete, nothing selected by default) ────────────────
+let companiesCache = [];
+const searchEl = document.getElementById('company-search');
+const hiddenEl = document.getElementById('company-sel-id');
+const suggEl = document.getElementById('company-suggestions');
+
 async function loadCompanies() {
   const [s, d] = await API.publicGet('/companies/active');
-  const sel = document.getElementById('company-sel');
-  if (s !== 200 || !d.companies || !d.companies.length) {
-    sel.innerHTML = '<option value="">No active companies</option>';
-    return;
-  }
-  sel.innerHTML =
-    d.companies.map(o => `<option value="${o.id}">${o.name}${o.address ? ' — ' + o.address : ''}</option>`).join('') +
-    '<option value="__dist">🚚 Distributor / Staff Access</option>';
+  companiesCache = (s === 200 && d.companies) ? d.companies : [];
 }
+
+function renderSuggestions(filter) {
+  const q = filter.trim().toLowerCase();
+  const options = companiesCache
+    .map(o => ({ id: o.id, label: `${o.name}${o.address ? ' — ' + o.address : ''}` }))
+    .concat([{ id: '__dist', label: '🚚 Distributor / Staff Access' }]);
+  const matches = q ? options.filter(o => o.label.toLowerCase().includes(q)) : options;
+  suggEl.innerHTML = matches.length
+    ? matches.map(o => `<div class="autocomplete-item" data-id="${o.id}" data-label="${o.label}">${o.label}</div>`).join('')
+    : '<div class="autocomplete-item text-muted">No matches</div>';
+  suggEl.style.display = '';
+  suggEl.querySelectorAll('[data-id]').forEach(el => el.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    hiddenEl.value = el.dataset.id;
+    searchEl.value = el.dataset.label;
+    suggEl.style.display = 'none';
+  }));
+}
+
+searchEl.addEventListener('focus', () => renderSuggestions(searchEl.value));
+searchEl.addEventListener('input', () => { hiddenEl.value = ''; renderSuggestions(searchEl.value); });
+searchEl.addEventListener('blur', () => setTimeout(() => { suggEl.style.display = 'none'; }, 150));
 
 // ── Login flow ────────────────────────────────────────────────────────────────
 const nameEl = document.getElementById('name');
@@ -76,7 +96,7 @@ const btn    = document.getElementById('sign-in');
 
 async function doLogin() {
   const name = nameEl.value.trim();
-  const companyRaw = document.getElementById('company-sel').value;
+  const companyRaw = document.getElementById('company-sel-id').value;
   if (!name) { msgEl.innerHTML = '<div class="alert alert-err">Please enter your name.</div>'; return; }
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Signing in…';
   msgEl.innerHTML = '';

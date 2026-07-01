@@ -44,6 +44,13 @@
 
     <div class="form-group" id="catalog-group" style="display:none">
       <label class="form-label">Products to enable for your employees</label>
+      <p class="text-muted" style="margin-top:-4px;margin-bottom:8px">Type a product name — if your distributor already sells it, we'll reuse it; otherwise it's added to their catalog at the price you set.</p>
+      <div class="form-row mb8">
+        <input id="new-prod-name" list="dist-product-names" placeholder="Product name, e.g. Green Tea">
+        <input id="new-prod-price" type="number" min="0" step="0.5" placeholder="Price (₹)" style="max-width:120px">
+        <button class="btn btn-sm btn-primary" type="button" id="add-prod-btn">Add</button>
+      </div>
+      <datalist id="dist-product-names"></datalist>
       <div id="catalog-list" class="card" style="padding:10px"></div>
     </div>
 
@@ -117,20 +124,46 @@ async function loadDistributors() {
     d.companies.map(c => `<option value="${c.id}">${c.name}${c.address ? ' — ' + c.address : ''}</option>`).join('');
 }
 
+let pendingProducts = [];
+
+function renderPendingProducts() {
+  catalogList.innerHTML = pendingProducts.map((p, i) => `
+    <div class="flex-between" style="padding:6px 0">
+      <span>🛒 ${p.name} — ₹${p.price}</span>
+      <button class="btn btn-sm btn-danger" type="button" data-remove="${i}">Remove</button>
+    </div>
+  `).join('') || '<div class="text-muted">No products added yet.</div>';
+  catalogList.querySelectorAll('[data-remove]').forEach(btn => btn.addEventListener('click', () => {
+    pendingProducts.splice(parseInt(btn.dataset.remove), 1);
+    renderPendingProducts();
+  }));
+}
+
 async function loadCatalog(distributorId) {
+  pendingProducts = [];
+  renderPendingProducts();
   if (!distributorId) { catalogGroup.style.display = 'none'; return; }
-  const [s, d] = await API.publicGet(`/distributors/${distributorId}/products`);
-  if (s !== 200 || !d.products) { catalogList.innerHTML = '<div class="text-muted">Could not load products.</div>'; return; }
-  catalogList.innerHTML = d.products.filter(p => p.is_active).map(p => `
-    <label style="display:flex;align-items:center;gap:8px;padding:6px 0">
-      <input type="checkbox" class="catalog-cb" value="${p.id}" checked>
-      <span>${p.emoji} ${p.name} — ₹${p.current_price}</span>
-    </label>
-  `).join('') || '<div class="text-muted">This distributor has no products yet.</div>';
   catalogGroup.style.display = '';
+  const [s, d] = await API.publicGet(`/distributors/${distributorId}/products`);
+  const names = s === 200 && d.products ? d.products.filter(p => p.is_active).map(p => p.name) : [];
+  document.getElementById('dist-product-names').innerHTML = names.map(n => `<option value="${n}"></option>`).join('');
 }
 
 distSel.addEventListener('change', () => loadCatalog(distSel.value));
+
+document.getElementById('add-prod-btn').addEventListener('click', () => {
+  const nameEl = document.getElementById('new-prod-name');
+  const priceEl = document.getElementById('new-prod-price');
+  const name = nameEl.value.trim();
+  const price = parseFloat(priceEl.value);
+  if (!name || !(price >= 0)) { Toast.warn('Enter a product name and a valid price.'); return; }
+  const existingIdx = pendingProducts.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
+  if (existingIdx >= 0) pendingProducts[existingIdx].price = price;
+  else pendingProducts.push({ name, price });
+  renderPendingProducts();
+  nameEl.value = ''; priceEl.value = '';
+  nameEl.focus();
+});
 
 document.getElementById('reg-submit').onclick = async () => {
   const msg = document.getElementById('reg-msg');
@@ -152,7 +185,7 @@ document.getElementById('reg-submit').onclick = async () => {
   if (mode === 'company') {
     if (!distSel.value) { msg.innerHTML = '<div class="alert alert-warn">Please select a distributor.</div>'; return; }
     body.distributor_id = distSel.value;
-    body.enabled_product_ids = Array.from(document.querySelectorAll('.catalog-cb:checked')).map(cb => cb.value);
+    body.new_products = pendingProducts.map(p => ({ name: p.name, price: p.price }));
   }
 
   const btn = document.getElementById('reg-submit');

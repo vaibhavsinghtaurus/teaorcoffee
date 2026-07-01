@@ -81,6 +81,11 @@ class SetCompanyModeRequest(BaseModel):
     mode: str
 
 
+class NewProductInput(BaseModel):
+    name: str
+    price: float
+
+
 class RegisterCompanyRequest(BaseModel):
     name: str
     slug: str
@@ -92,7 +97,9 @@ class RegisterCompanyRequest(BaseModel):
     manager_names: list[str] = []
     hr_names: list[str] = []
     staff_names: list[str] = []            # employees (company mode) or distributor boys (distributor mode)
-    enabled_product_ids: list[str] = []    # distributor product ids to enable (company mode only)
+    new_products: list[NewProductInput] = []   # products to enable for this company (company mode only) —
+                                                # reused if the distributor already has a product with that name,
+                                                # otherwise created in the distributor's catalog at the given price
 
 
 class RegisterCompanyResponse(BaseModel):

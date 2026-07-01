@@ -73,6 +73,16 @@
           <div class="form-group"><label class="form-label">Branch Address</label><input id="new-co-address" placeholder="e.g. 611 K10 Grand, Subhanpura, Vadodara"></div>
           <div class="form-group"><select id="new-co-mode"><option value="company">Company</option><option value="distributor">Distributor</option></select></div>
           <div class="form-group" id="new-co-dist-group"><label class="form-label">Distributor</label><select id="new-co-dist-sel"></select></div>
+          <div class="form-group" id="new-co-catalog-group">
+            <label class="form-label">Products to enable for this company</label>
+            <div class="form-row mb8">
+              <input id="new-co-prod-name" list="new-co-dist-product-names" placeholder="Product name, e.g. Green Tea">
+              <input id="new-co-prod-price" type="number" min="0" step="0.5" placeholder="Price (₹)" style="max-width:120px">
+              <button class="btn btn-sm btn-primary" type="button" id="add-co-prod-btn">Add</button>
+            </div>
+            <datalist id="new-co-dist-product-names"></datalist>
+            <div id="new-co-catalog-list" class="card" style="padding:10px"></div>
+          </div>
           <div class="form-group"><label class="form-label">Admin Name</label><input id="new-co-admin" placeholder="Admin name…"></div>
           <div class="form-group">
             <label class="form-label">Manager Names (comma-separated)</label>
@@ -311,8 +321,55 @@ initTabs('tabs');
 populateCompanySels();
 loadProducts();
 
-document.getElementById('new-co-mode').addEventListener('change', (e) => {
-  document.getElementById('new-co-dist-group').style.display = e.target.value === 'company' ? '' : 'none';
+function updateNewCoModeUI() {
+  const isCompany = document.getElementById('new-co-mode').value === 'company';
+  document.getElementById('new-co-dist-group').style.display = isCompany ? '' : 'none';
+  document.getElementById('new-co-catalog-group').style.display = isCompany ? '' : 'none';
+}
+document.getElementById('new-co-mode').addEventListener('change', updateNewCoModeUI);
+updateNewCoModeUI();
+
+// ── Create Full Company: product builder ────────────────────────────────────────
+let newCoPendingProducts = [];
+function renderNewCoPendingProducts() {
+  const el = document.getElementById('new-co-catalog-list');
+  el.innerHTML = newCoPendingProducts.map((p, i) => `
+    <div class="flex-between" style="padding:6px 0">
+      <span>🛒 ${p.name} — ₹${p.price}</span>
+      <button class="btn btn-sm btn-danger" type="button" data-remove-co-prod="${i}">Remove</button>
+    </div>
+  `).join('') || '<div class="text-muted">No products added yet.</div>';
+  el.querySelectorAll('[data-remove-co-prod]').forEach(btn => btn.addEventListener('click', () => {
+    newCoPendingProducts.splice(parseInt(btn.dataset.removeCoProd), 1);
+    renderNewCoPendingProducts();
+  }));
+}
+renderNewCoPendingProducts();
+
+async function loadNewCoDistProductNames(distributorId) {
+  const dl = document.getElementById('new-co-dist-product-names');
+  if (!distributorId) { dl.innerHTML = ''; return; }
+  const [s, d] = await API.publicGet(`/distributors/${distributorId}/products`);
+  const names = s === 200 && d.products ? d.products.filter(p => p.is_active).map(p => p.name) : [];
+  dl.innerHTML = names.map(n => `<option value="${n}"></option>`).join('');
+}
+document.getElementById('new-co-dist-sel').addEventListener('change', (e) => {
+  newCoPendingProducts = [];
+  renderNewCoPendingProducts();
+  loadNewCoDistProductNames(e.target.value);
+});
+document.getElementById('add-co-prod-btn').addEventListener('click', () => {
+  const nameEl = document.getElementById('new-co-prod-name');
+  const priceEl = document.getElementById('new-co-prod-price');
+  const name = nameEl.value.trim();
+  const price = parseFloat(priceEl.value);
+  if (!name || !(price >= 0)) { Toast.warn('Enter a product name and a valid price.'); return; }
+  const existingIdx = newCoPendingProducts.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
+  if (existingIdx >= 0) newCoPendingProducts[existingIdx].price = price;
+  else newCoPendingProducts.push({ name, price });
+  renderNewCoPendingProducts();
+  nameEl.value = ''; priceEl.value = '';
+  nameEl.focus();
 });
 
 // ── Orders tab ─────────────────────────────────────────────────────────────────
@@ -404,11 +461,16 @@ document.getElementById('create-co-btn').onclick = async () => {
   const msg = document.getElementById('create-co-msg');
   if (!name || !slug || !address || !admin_name) { msg.innerHTML = '<div class="alert alert-warn">Fill name, slug, address, and admin name.</div>'; return; }
   const body = { name, slug, address, mode, admin_name, manager_names, hr_names, staff_names };
-  if (mode === 'company') body.distributor_id = distributor_id;
+  if (mode === 'company') {
+    body.distributor_id = distributor_id;
+    body.new_products = newCoPendingProducts.map(p => ({ name: p.name, price: p.price }));
+  }
   const [s, d] = await API.post('/companies/create-full', body);
   if (s === 200 && d.success) {
     msg.innerHTML = `<div class="alert alert-ok">${d.message}</div>`;
     ['new-co-name', 'new-co-slug', 'new-co-address', 'new-co-admin', 'new-co-managers', 'new-co-hrs', 'new-co-staff'].forEach(id => { document.getElementById(id).value = ''; });
+    newCoPendingProducts = [];
+    renderNewCoPendingProducts();
     renderCompanies();
   } else if (s === 409) msg.innerHTML = `<div class="alert alert-warn">${d.detail || 'Already exists.'}</div>`;
   else msg.innerHTML = `<div class="alert alert-err">${d.detail || 'Error.'}</div>`;

@@ -88,11 +88,15 @@ async def register_company_impl(request: RegisterCompanyRequest) -> RegisterComp
     staff_role = "employee" if request.mode == "company" else "distributor_boy"
     await db.add_company_members(request.staff_names, company_id, staff_role)
 
-    if request.mode == "company" and request.enabled_product_ids:
-        catalog_ids = {p["id"] for p in await db.get_distributor_products(distributor_id)}
-        for product_id in request.enabled_product_ids:
-            if product_id in catalog_ids:
-                await db.enable_company_product(company_id, product_id)
+    if request.mode == "company" and request.new_products:
+        for item in request.new_products:
+            product_name = item.name.strip()
+            if not product_name or item.price < 0:
+                continue
+            product_id, _ = await db.add_distributor_product(
+                distributor_id, product_name, "🛒", item.price, max_qty=2,
+            )
+            await db.enable_company_product(company_id, product_id)
 
     return RegisterCompanyResponse(
         success=True, company_id=company_id, name=name,
