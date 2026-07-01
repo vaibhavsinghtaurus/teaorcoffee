@@ -58,13 +58,26 @@ uvicorn src.teaorcoffee.main:app --host 0.0.0.0 --port 8000 --reload
 
 Open `http://localhost:8000` in your browser.
 
+## Deploying to FastAPI Cloud
+
+```bash
+# Install the FastAPI CLI (if not already installed)
+pip install "fastapi[standard]"
+
+# Deploy from the project root
+fastapi deploy
+```
+
+Set `TOC_MONGODB_URI` as an environment variable in the FastAPI Cloud dashboard before deploying.
+
+---
+
 ## Running with Docker
 
 ```bash
 docker build -t teaorcoffee .
 docker run -p 8000:8000 \
   -e TOC_MONGODB_URI="mongodb+srv://..." \
-  -e ADMIN_PASS="your-password" \
   teaorcoffee
 ```
 

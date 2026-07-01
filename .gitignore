@@ -1,3 +1,6 @@
+# Streamlit leftovers
+streamlit_utils/
+
 # SQLite database files
 data/*.db
 data/*.db-journal
