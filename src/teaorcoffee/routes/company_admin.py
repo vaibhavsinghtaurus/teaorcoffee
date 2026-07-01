@@ -2,7 +2,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 
 from src.teaorcoffee.core.auth import get_current_user, require_role
-from src.teaorcoffee.core.database import db
+from src.teaorcoffee.core.database import db, today_ist
 from src.teaorcoffee.models.schema import (
     AuthUser,
     RemoveOrderRequest, RemoveOrderResponse,
@@ -31,8 +31,10 @@ _ASSIGNABLE_ROLES = {"company_admin", "manager", "hr", "employee", "distributor_
 router = APIRouter(prefix="/company-admin", tags=["Company Admin"])
 
 
-def _check_company(user: AuthUser) -> str:
+def _check_company(user: AuthUser, requested_company_id: str | None = None) -> str:
     require_role(user, *_COMPANY_ROLES)
+    if user.role == "super_admin" and requested_company_id:
+        return requested_company_id
     if not user.company_id:
         raise HTTPException(400, "No company assigned")
     return user.company_id
@@ -89,14 +91,12 @@ async def ca_place_order(request: PlaceOrderForUserRequest, user: AuthUser = Dep
         raise HTTPException(400, "Invalid or unavailable product for this company")
     if request.qty < 1 or request.qty > product["max_qty"]:
         raise HTTPException(400, f"Quantity must be 1–{product['max_qty']}")
-    date_str = request.date or None
-    from datetime import date as date_cls
-    date_str = date_str or date_cls.today().isoformat()
+    date_str = request.date or today_ist()
     if await db.has_user_pending_vote(int(target["id"]), date_str):
         raise HTTPException(409, f"'{name}' already has a pending order for that date")
     await db.insert_vote(int(target["id"]), company_id, request.product_id, product["name"], product["emoji"],
                           request.qty, price_at_order=product["price"], date_str=date_str)
-    if date_str == date_cls.today().isoformat():
+    if date_str == today_ist():
         await broadcast_votes(company_id)
     return PlaceOrderForUserResponse(success=True, name=name, message=f"Ordered {request.qty}x {product['name']} for '{name}'")
 
@@ -116,7 +116,7 @@ async def ca_list_users(user: AuthUser = Depends(get_current_user)):
 
 @router.post("/staff", response_model=AddCompanyMemberResponse)
 async def ca_add_staff(request: AddCompanyMemberRequest, user: AuthUser = Depends(get_current_user)):
-    company_id = _check_company(user)
+    company_id = _check_company(user, request.company_id)
     name = request.name.strip()
     if not name:
         raise HTTPException(400, "Name required")

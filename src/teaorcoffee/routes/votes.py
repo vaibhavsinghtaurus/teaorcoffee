@@ -1,8 +1,7 @@
-from datetime import date as date_cls
 from fastapi import APIRouter, HTTPException, status, Depends
 
 from src.teaorcoffee.core.auth import get_current_user
-from src.teaorcoffee.core.database import db
+from src.teaorcoffee.core.database import db, today_ist
 from src.teaorcoffee.models.schema import (
     VotesResponse, VoteMeResponse, VoteRequest, EditVoteRequest, VoteActionResponse, AuthUser,
     OrdersBreakdownResponse, OrderDetail, ProductTotal,
@@ -14,7 +13,7 @@ router = APIRouter(tags=["Votes"])
 
 
 def _today() -> str:
-    return date_cls.today().isoformat()
+    return today_ist()
 
 
 def _validate_not_past(date_str: str):

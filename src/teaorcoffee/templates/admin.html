@@ -111,6 +111,18 @@
           <div id="assign-dist-msg" class="mt8"></div>
         </div>
       </div>
+
+      <div class="card mt16">
+        <h4>Add Staff to an Existing Company</h4>
+        <p class="text-muted mb8">e.g. give Zaff its first manager. The new person sets their own password on first login — there's nothing to hand them but their name.</p>
+        <div class="form-group"><select id="staff-co-sel"></select></div>
+        <div class="form-row mb8">
+          <input id="staff-add-name" placeholder="Full name…">
+          <select id="staff-add-role"></select>
+        </div>
+        <button class="btn btn-primary btn-full" id="staff-add-btn">Add</button>
+        <div id="staff-add-msg" class="mt8"></div>
+      </div>
     </div>
 
     <!-- ═══ USERS ═══ -->
@@ -261,7 +273,38 @@ async function populateCompanySels() {
   const distOpts = companiesList.filter(c => c.mode === 'distributor').map(c => `<option value="${c.id}">${c.name}${c.address ? ' — ' + c.address : ''}</option>`).join('');
   document.getElementById('assign-dist-sel').innerHTML = distOpts;
   document.getElementById('new-co-dist-sel').innerHTML = distOpts;
+  document.getElementById('staff-co-sel').innerHTML = opts;
+  updateStaffRoleOptions();
 }
+
+// ── Add staff to any existing company (bootstraps e.g. Zaff's first manager) ──
+function updateStaffRoleOptions() {
+  const companyId = document.getElementById('staff-co-sel').value;
+  const company = companiesList.find(c => c.id === companyId);
+  const isDistributor = company && company.mode === 'distributor';
+  const sel = document.getElementById('staff-add-role');
+  const roles = isDistributor
+    ? [['company_admin', 'Company Admin'], ['manager', 'Manager'], ['hr', 'HR'], ['distributor_boy', 'Distributor Boy']]
+    : [['company_admin', 'Company Admin'], ['manager', 'Manager'], ['hr', 'HR'], ['employee', 'Employee']];
+  sel.innerHTML = roles.map(([v, label]) => `<option value="${v}">${label}</option>`).join('');
+}
+document.getElementById('staff-co-sel').addEventListener('change', updateStaffRoleOptions);
+document.getElementById('staff-add-btn').onclick = async () => {
+  const companyId = document.getElementById('staff-co-sel').value;
+  const company = companiesList.find(c => c.id === companyId);
+  const name = document.getElementById('staff-add-name').value.trim();
+  const role = document.getElementById('staff-add-role').value;
+  const msg = document.getElementById('staff-add-msg');
+  if (!companyId || !name) { msg.innerHTML = '<div class="alert alert-warn">Select a company and enter a name.</div>'; return; }
+  const path = company && company.mode === 'distributor' ? '/distributor/staff' : '/company-admin/staff';
+  const [s, d] = await API.post(path, { company_id: companyId, name, role });
+  if (s === 200 && d.success) {
+    msg.innerHTML = `<div class="alert alert-ok">${d.message}</div>`;
+    document.getElementById('staff-add-name').value = '';
+  } else if (s === 409) msg.innerHTML = `<div class="alert alert-warn">${d.detail || 'Already exists.'}</div>`;
+  else msg.innerHTML = `<div class="alert alert-err">${d.detail || 'Error.'}</div>`;
+  setTimeout(() => { msg.innerHTML = ''; }, 4000);
+};
 
 // ── Init ───────────────────────────────────────────────────────────────────────
 initTabs('tabs');

@@ -1,8 +1,18 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorClient
+
+# The business runs out of Vadodara, India — "today"/order-day boundaries must be
+# anchored to IST, not the server's own (often UTC) system timezone. Using the
+# server's local time here would make orders roll over to a new "day" hours before
+# or after India's actual midnight, depending on where the app happens to be hosted.
+IST = timezone(timedelta(hours=5, minutes=30))
+
+
+def today_ist() -> str:
+    return datetime.now(IST).date().isoformat()
 
 
 def _oid(id_str: str) -> ObjectId:
@@ -10,9 +20,6 @@ def _oid(id_str: str) -> ObjectId:
         return ObjectId(id_str)
     except Exception:
         return ObjectId()
-
-
-
 
 class MongoDatabase:
     _instance = None
@@ -71,7 +78,7 @@ class MongoDatabase:
         return self._db["products"]
 
     def _today(self) -> str:
-        return date.today().isoformat()
+        return today_ist()
 
     # ── Companies ─────────────────────────────────────────────────────────────────
 

@@ -120,16 +120,23 @@ function initTabs(containerId) {
 }
 
 // Date utilities
+// IMPORTANT: use LOCAL calendar date, not `.toISOString()` (which is always UTC and
+// silently shifts to the wrong day for hours around local midnight — e.g. an IST
+// browser near midnight would show yesterday's/tomorrow's UTC date instead of today).
 const D = {
-  today: () => new Date().toISOString().split('T')[0],
-  addDays(d, n) { const x = new Date(d + 'T12:00:00'); x.setDate(x.getDate() + n); return x.toISOString().split('T')[0]; },
-  weekStart() { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().split('T')[0]; },
-  monthStart() { const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0]; },
+  _fmt(d) {
+    const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  },
+  today() { return D._fmt(new Date()); },
+  addDays(d, n) { const x = new Date(d + 'T12:00:00'); x.setDate(x.getDate() + n); return D._fmt(x); },
+  weekStart() { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return D._fmt(d); },
+  monthStart() { const d = new Date(); d.setDate(1); return D._fmt(d); },
   lastMonth() {
     const d = new Date(); d.setDate(1); d.setDate(d.getDate() - 1);
-    const end = d.toISOString().split('T')[0];
+    const end = D._fmt(d);
     d.setDate(1);
-    return { start: d.toISOString().split('T')[0], end };
+    return { start: D._fmt(d), end };
   },
 };
 

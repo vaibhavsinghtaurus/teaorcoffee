@@ -1,9 +1,8 @@
 """HR routes: view/manage orders and stats for their own company."""
-from datetime import date as date_cls
 from fastapi import APIRouter, HTTPException, Depends
 
 from src.teaorcoffee.core.auth import get_current_user, require_role
-from src.teaorcoffee.core.database import db
+from src.teaorcoffee.core.database import db, today_ist
 from src.teaorcoffee.models.schema import (
     AuthUser,
     RemoveOrderRequest, RemoveOrderResponse,
@@ -70,12 +69,12 @@ async def hr_place_order(request: PlaceOrderForUserRequest, user: AuthUser = Dep
         raise HTTPException(400, "Invalid or unavailable product for this company")
     if request.qty < 1 or request.qty > product["max_qty"]:
         raise HTTPException(400, f"Quantity must be 1–{product['max_qty']}")
-    date_str = request.date or date_cls.today().isoformat()
+    date_str = request.date or today_ist()
     if await db.has_user_pending_vote(int(target["id"]), date_str):
         raise HTTPException(409, f"'{name}' already has a pending order for that date")
     await db.insert_vote(int(target["id"]), company_id, request.product_id, product["name"], product["emoji"],
                           request.qty, price_at_order=product["price"], date_str=date_str)
-    if date_str == date_cls.today().isoformat():
+    if date_str == today_ist():
         await broadcast_votes(company_id)
     return PlaceOrderForUserResponse(success=True, name=name, message=f"Ordered {request.qty}x {product['name']} for '{name}'")
 
@@ -86,7 +85,7 @@ async def hr_edit_order(name: str, edit: EditVoteRequest, user: AuthUser = Depen
     target = await db.get_user_by_name(name.strip())
     if not target or target.get("company_id") != company_id:
         raise HTTPException(404, f"User '{name}' not found in your company")
-    date_str = edit.date or date_cls.today().isoformat()
+    date_str = edit.date or today_ist()
     existing = await db.get_user_vote_for_date(int(target["id"]), date_str, status="pending")
     if not existing:
         raise HTTPException(404, "No pending order found for that date")
@@ -97,7 +96,7 @@ async def hr_edit_order(name: str, edit: EditVoteRequest, user: AuthUser = Depen
         raise HTTPException(400, f"Quantity must be 1–{product['max_qty']}")
     await db.update_vote(int(target["id"]), date_str, edit.product_id, product["name"], product["emoji"],
                           edit.qty, price_at_order=product["price"])
-    if date_str == date_cls.today().isoformat():
+    if date_str == today_ist():
         await broadcast_votes(company_id)
     return VoteActionResponse(success=True, message=f"Order updated for '{name}'")
 
