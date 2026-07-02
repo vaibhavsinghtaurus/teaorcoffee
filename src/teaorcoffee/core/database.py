@@ -156,6 +156,17 @@ class MongoDatabase:
             doc["id"] = str(doc["_id"])
         return doc
 
+    async def get_default_distributor_id(self) -> Optional[str]:
+        """Fallback supplier for a company that hasn't picked one yet (e.g. right after
+        self-serve registration, where choosing a distributor is no longer required
+        up front) — prefers the seeded "Zaff" distributor, else the oldest active one."""
+        zaff = await self.get_company_by_name("Zaff", mode="distributor")
+        if zaff and zaff.get("is_active"):
+            return zaff["id"]
+        async for doc in self.companies.find({"mode": "distributor", "is_active": True}, sort=[("_id", 1)]).limit(1):
+            return str(doc["_id"])
+        return None
+
     async def get_all_companies(self) -> list[dict]:
         result = []
         async for doc in self.companies.find({}, sort=[("name", 1)]):

@@ -72,8 +72,10 @@
           <div class="form-group"><input id="new-co-slug" placeholder="slug (auto-generated)…"></div>
           <div class="form-group"><label class="form-label">Branch Address</label><input id="new-co-address" placeholder="e.g. 611 K10 Grand, Subhanpura, Vadodara"></div>
           <div class="form-group"><select id="new-co-mode"><option value="company">Company</option><option value="distributor">Distributor</option></select></div>
-          <div class="form-group" id="new-co-dist-group"><label class="form-label">Distributor</label><select id="new-co-dist-sel"></select></div>
-          <div class="form-group" id="new-co-catalog-group">
+          <div class="form-group" id="new-co-supplier-note">
+            <p class="text-muted" style="margin:0">Gets the default supplier automatically — change it anytime from the "Assign Distributor" card.</p>
+          </div>
+          <div class="form-group" id="new-co-catalog-group" style="display:none">
             <label class="form-label" id="new-co-catalog-label">Products to enable for this company</label>
             <div class="form-row mb8">
               <div style="position:relative">
@@ -284,7 +286,6 @@ async function populateCompanySels() {
   document.getElementById('assign-co-sel').innerHTML = companiesList.filter(c => c.mode === 'company').map(c => `<option value="${c.id}">${c.name}${c.address ? ' — ' + c.address : ''}</option>`).join('');
   const distOpts = companiesList.filter(c => c.mode === 'distributor').map(c => `<option value="${c.id}">${c.name}${c.address ? ' — ' + c.address : ''}</option>`).join('');
   document.getElementById('assign-dist-sel').innerHTML = distOpts;
-  document.getElementById('new-co-dist-sel').innerHTML = distOpts;
   document.getElementById('staff-co-sel').innerHTML = opts;
   updateStaffRoleOptions();
 }
@@ -325,12 +326,12 @@ loadProducts();
 
 function updateNewCoModeUI() {
   const isCompany = document.getElementById('new-co-mode').value === 'company';
-  document.getElementById('new-co-dist-group').style.display = isCompany ? '' : 'none';
-  document.getElementById('new-co-catalog-label').textContent = isCompany
-    ? 'Products to enable for this company' : 'Products & Pricing for this distributor';
+  document.getElementById('new-co-supplier-note').style.display = isCompany ? '' : 'none';
+  document.getElementById('new-co-catalog-group').style.display = isCompany ? 'none' : '';
+  newCoPendingProducts = [];
+  renderNewCoPendingProducts();
 }
 document.getElementById('new-co-mode').addEventListener('change', updateNewCoModeUI);
-updateNewCoModeUI();
 
 // ── Create Full Company: product builder ────────────────────────────────────────
 let newCoPendingProducts = [];
@@ -354,10 +355,6 @@ productAutocomplete('new-co-prod-name', 'new-co-prod-suggestions', (picked) => {
   document.getElementById('new-co-prod-price').value = picked.price;
 });
 
-document.getElementById('new-co-dist-sel').addEventListener('change', () => {
-  newCoPendingProducts = [];
-  renderNewCoPendingProducts();
-});
 document.getElementById('add-co-prod-btn').addEventListener('click', () => {
   const nameEl = document.getElementById('new-co-prod-name');
   const priceEl = document.getElementById('new-co-prod-price');
@@ -453,7 +450,6 @@ document.getElementById('create-co-btn').onclick = async () => {
   const slug = document.getElementById('new-co-slug').value.trim();
   const address = document.getElementById('new-co-address').value.trim();
   const mode = document.getElementById('new-co-mode').value;
-  const distributor_id = document.getElementById('new-co-dist-sel').value;
   const admin_name = document.getElementById('new-co-admin').value.trim();
   const manager_names = parseNames(document.getElementById('new-co-managers').value);
   const hr_names = parseNames(document.getElementById('new-co-hrs').value);
@@ -462,7 +458,6 @@ document.getElementById('create-co-btn').onclick = async () => {
   if (!name || !slug || !address || !admin_name) { msg.innerHTML = '<div class="alert alert-warn">Fill name, slug, address, and admin name.</div>'; return; }
   const body = { name, slug, address, mode, admin_name, manager_names, hr_names, staff_names };
   body.new_products = newCoPendingProducts.map(p => ({ name: p.name, price: p.price }));
-  if (mode === 'company') body.distributor_id = distributor_id;
   const [s, d] = await API.post('/companies/create-full', body);
   if (s === 200 && d.success) {
     msg.innerHTML = `<div class="alert alert-ok">${d.message}</div>`;

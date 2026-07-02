@@ -64,12 +64,17 @@ async def register_company_impl(request: RegisterCompanyRequest) -> RegisterComp
 
     distributor_id = None
     if request.mode == "company":
-        if not request.distributor_id:
-            raise HTTPException(400, "distributor_id is required when mode='company'.")
-        distributor = await db.get_company_by_id(request.distributor_id)
-        if not distributor or distributor.get("mode") != "distributor" or not distributor.get("is_active"):
-            raise HTTPException(400, "Invalid or inactive distributor selected.")
-        distributor_id = request.distributor_id
+        # Picking a supplier is no longer part of registration — a company gets the
+        # default distributor and can switch to any other active one at any time
+        # afterward (company_admin's "Supplier" setting), so this only validates an
+        # explicit choice; it never blocks registration for not having one.
+        if request.distributor_id:
+            distributor = await db.get_company_by_id(request.distributor_id)
+            if not distributor or distributor.get("mode") != "distributor" or not distributor.get("is_active"):
+                raise HTTPException(400, "Invalid or inactive distributor selected.")
+            distributor_id = request.distributor_id
+        else:
+            distributor_id = await db.get_default_distributor_id()
 
     # A new branch — never reuses an existing row, even if the name matches another branch
     company_id = await db.create_company_branch(name, slug, mode=request.mode, address=address,
@@ -88,7 +93,7 @@ async def register_company_impl(request: RegisterCompanyRequest) -> RegisterComp
     staff_role = "employee" if request.mode == "company" else "distributor_boy"
     await db.add_company_members(request.staff_names, company_id, staff_role)
 
-    if request.new_products:
+    if request.new_products and (request.mode == "distributor" or distributor_id):
         # "company" mode: reuse/create the product in the chosen distributor's catalog, then
         # enable it for this new company. "distributor" mode: this new company IS the
         # distributor, so its own id is the catalog owner — no separate enable step needed.

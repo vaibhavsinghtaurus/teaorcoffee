@@ -124,6 +124,16 @@
 
   <!-- CATALOG -->
   <div class="tab-pane" id="tab-catalog">
+    <div class="card mb16">
+      <h4>Supplier</h4>
+      <p class="text-muted mb8" id="company-dist-display">Loading…</p>
+      <div class="form-row">
+        <select id="company-dist-sel"></select>
+        <button class="btn btn-primary" id="company-dist-btn">Change</button>
+      </div>
+      <div id="company-dist-msg" class="mt8"></div>
+    </div>
+
     <div class="flex-between mb16">
       <h3 style="margin:0">Product Catalog</h3>
       <button class="btn btn-sm" id="load-catalog">🔄 Load</button>
@@ -296,6 +306,35 @@ document.getElementById('pending-btn').onclick = async () => {
   el.innerHTML = users.length ? users.map(u => `<div class="mb8">• ${u}</div>`).join('') : '<div class="alert alert-ok">All users have passwords set.</div>';
 };
 
+// ── Supplier (Distributor) ──────────────────────────────────────────────────
+async function loadCompanyDistributor() {
+  const [s, d] = await API.get('/company-admin/company');
+  const display = document.getElementById('company-dist-display');
+  const sel = document.getElementById('company-dist-sel');
+  if (s !== 200) { display.textContent = 'Could not load.'; return; }
+  const [s2, d2] = await API.publicGet('/distributors/active');
+  const distributors = (s2 === 200 && d2.companies) ? d2.companies : [];
+  const current = distributors.find(x => x.id === d.distributor_id);
+  display.innerHTML = current
+    ? `Currently supplied by <strong>${current.name}</strong>${current.address ? ' — ' + current.address : ''}`
+    : 'No supplier assigned yet.';
+  sel.innerHTML = distributors.length
+    ? distributors.map(x => `<option value="${x.id}" ${x.id === d.distributor_id ? 'selected' : ''}>${x.name}${x.address ? ' — ' + x.address : ''}</option>`).join('')
+    : '<option value="">No active distributors</option>';
+}
+document.getElementById('company-dist-btn').onclick = async () => {
+  const distributor_id = document.getElementById('company-dist-sel').value;
+  const msg = document.getElementById('company-dist-msg');
+  if (!distributor_id) { msg.innerHTML = '<div class="alert alert-warn">Select a distributor.</div>'; return; }
+  const [s, d] = await API.put('/company-admin/company/distributor', { distributor_id });
+  if (s === 200 && d.success) {
+    msg.innerHTML = `<div class="alert alert-ok">${d.message}</div>`;
+    loadCompanyDistributor();
+    loadCatalog();
+  } else msg.innerHTML = `<div class="alert alert-err">${d.detail || 'Error.'}</div>`;
+  setTimeout(() => { msg.innerHTML = ''; }, 4000);
+};
+
 // ── Catalog ──────────────────────────────────────────────────────────────────
 async function loadCatalog() {
   const [s, d] = await API.get('/company-admin/catalog');
@@ -404,6 +443,7 @@ document.getElementById('company-address-btn').onclick = async () => {
 
 loadOrders();
 loadProducts();
+loadCompanyDistributor();
 loadCatalog();
 loadCompanyAddress();
 initUserSel();

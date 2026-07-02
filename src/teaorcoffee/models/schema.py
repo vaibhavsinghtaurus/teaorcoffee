@@ -66,6 +66,10 @@ class SetMyAddressRequest(BaseModel):
     address: str
 
 
+class SetMyDistributorRequest(BaseModel):
+    distributor_id: str
+
+
 class CompanyActiveRequest(BaseModel):
     company_id: str
     is_active: bool

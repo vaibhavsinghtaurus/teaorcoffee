@@ -20,7 +20,7 @@ from src.teaorcoffee.models.schema import (
     UserStatsDayEntry, UserStatsResponse,
     CompanyProductOut, EnableCompanyProductRequest, DisableCompanyProductRequest,
     SetCompanyProductMaxQtyRequest,
-    CompanyOut, SetMyAddressRequest,
+    CompanyOut, SetMyAddressRequest, SetMyDistributorRequest,
 )
 from src.teaorcoffee.utils.broadcast import broadcast_votes
 
@@ -197,6 +197,19 @@ async def ca_set_address(request: SetMyAddressRequest, user: AuthUser = Depends(
         raise HTTPException(400, "Address cannot be empty")
     await db.update_company_address(company_id, address)
     return {"success": True, "message": "Address updated"}
+
+
+@router.put("/company/distributor")
+async def ca_set_distributor(request: SetMyDistributorRequest, user: AuthUser = Depends(get_current_user)):
+    """Self-service supplier switch — a company isn't locked to whatever distributor
+    it started with; company_admin/manager can change it at any time. Employees will
+    only see whatever products get (re-)enabled from the new distributor's catalog."""
+    company_id = _check_company(user)
+    distributor = await db.get_company_by_id(request.distributor_id)
+    if not distributor or distributor.get("mode") != "distributor" or not distributor.get("is_active"):
+        raise HTTPException(400, "Invalid or inactive distributor selected.")
+    await db.set_company_distributor(company_id, request.distributor_id)
+    return {"success": True, "message": f"Supplier changed to '{distributor['name']}'"}
 
 
 # ── Product Catalog (enable/disable distributor's products) ─────────────────
