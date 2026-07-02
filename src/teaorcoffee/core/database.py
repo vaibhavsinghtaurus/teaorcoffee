@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -205,6 +206,25 @@ class MongoDatabase:
             doc["id"] = str(doc["_id"])
             result.append(doc)
         return result
+
+    async def search_distributor_product_names(self, query: str, limit: int = 8) -> list[dict]:
+        """Product names already added by *any* distributor — lets a distributor (new or
+        existing) reuse an established name/price instead of retyping it from scratch."""
+        cursor = self.distributor_products.find(
+            {"name": {"$regex": re.escape(query), "$options": "i"}, "is_active": True},
+            sort=[("name", 1)],
+        )
+        seen: set[str] = set()
+        results = []
+        async for doc in cursor:
+            key = doc["name"].strip().lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            results.append({"name": doc["name"], "emoji": doc.get("emoji", "🛒"), "price": doc.get("current_price", 0)})
+            if len(results) >= limit:
+                break
+        return results
 
     async def get_distributor_product_by_id(self, product_id: str) -> Optional[dict]:
         try:

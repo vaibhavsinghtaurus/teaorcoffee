@@ -88,15 +88,27 @@ async def register_company_impl(request: RegisterCompanyRequest) -> RegisterComp
     staff_role = "employee" if request.mode == "company" else "distributor_boy"
     await db.add_company_members(request.staff_names, company_id, staff_role)
 
-    if request.mode == "company" and request.new_products:
+    if request.new_products:
+        # "company" mode: reuse/create the product in the chosen distributor's catalog, then
+        # enable it for this new company. "distributor" mode: this new company IS the
+        # distributor, so its own id is the catalog owner — no separate enable step needed.
+        catalog_owner_id = distributor_id if request.mode == "company" else company_id
         for item in request.new_products:
             product_name = item.name.strip()
             if not product_name or item.price < 0:
                 continue
-            product_id, _ = await db.add_distributor_product(
-                distributor_id, product_name, "🛒", item.price, max_qty=2,
+            product_id, created = await db.add_distributor_product(
+                catalog_owner_id, product_name, "🛒", item.price, max_qty=2,
             )
-            await db.enable_company_product(company_id, product_id)
+            if not created:
+                # Reused an existing product — the price typed on this form is what the
+                # person actually wants, so it must win over whatever was there before,
+                # not be silently dropped in favor of the old value.
+                existing = await db.get_distributor_product_by_id(product_id)
+                if existing and existing.get("current_price") != item.price:
+                    await db.update_distributor_product_price(product_id, item.price)
+            if request.mode == "company":
+                await db.enable_company_product(company_id, product_id)
 
     return RegisterCompanyResponse(
         success=True, company_id=company_id, name=name,

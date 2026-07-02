@@ -100,6 +100,46 @@ const Toast = {
   info: (m) => Toast.show(m, 'info'),
 };
 
+// Debounced, API-backed product-name autocomplete — wires a text input to
+// GET /products/search-names, showing previously-added products (any distributor)
+// so a distributor doesn't have to retype a name/price that's already in use.
+// onPick({name, emoji, price}) fires when a suggestion is clicked.
+function productAutocomplete(nameInputId, listElId, onPick) {
+  const nameEl = document.getElementById(nameInputId);
+  const listEl = document.getElementById(listElId);
+  if (!nameEl || !listEl) return;
+  let debounceTimer = null;
+  let requestSeq = 0;
+
+  function hide() { listEl.style.display = 'none'; listEl.innerHTML = ''; }
+
+  function render(products) {
+    if (!products.length) { hide(); return; }
+    listEl.innerHTML = products.map(p =>
+      `<div class="autocomplete-item" data-name="${p.name}" data-emoji="${p.emoji}" data-price="${p.price}">${p.emoji} ${p.name} — ₹${p.price}</div>`
+    ).join('');
+    listEl.style.display = '';
+    listEl.querySelectorAll('[data-name]').forEach(el => el.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      onPick({ name: el.dataset.name, emoji: el.dataset.emoji, price: parseFloat(el.dataset.price) });
+      hide();
+    }));
+  }
+
+  nameEl.addEventListener('input', () => {
+    const q = nameEl.value.trim();
+    clearTimeout(debounceTimer);
+    if (q.length < 2) { hide(); return; }
+    const seq = ++requestSeq;
+    debounceTimer = setTimeout(async () => {
+      const [s, d] = await API.publicGet(`/products/search-names?q=${encodeURIComponent(q)}`);
+      if (seq !== requestSeq) return; // a newer keystroke already fired a fresher request
+      render(s === 200 && d.products ? d.products : []);
+    }, 300);
+  });
+  nameEl.addEventListener('blur', () => setTimeout(hide, 150));
+}
+
 function initTabs(containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;

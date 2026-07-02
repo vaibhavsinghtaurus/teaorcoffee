@@ -71,8 +71,12 @@
     <div id="products-list" class="mb16"></div>
     <div class="card">
       <h4>Add Product</h4>
+      <p class="text-muted mb8">Type a name — pick a suggestion to reuse its price, or set your own to add it as new.</p>
       <div class="form-row mb8">
-        <input id="new-prod-name" placeholder="e.g. Green Tea">
+        <div style="position:relative">
+          <input id="new-prod-name" placeholder="e.g. Green Tea" autocomplete="off">
+          <div id="new-prod-suggestions" class="autocomplete-list" style="display:none"></div>
+        </div>
         <input id="new-prod-emoji" placeholder="Emoji" style="max-width:80px" value="🛒">
       </div>
       <div class="form-row mb8">
@@ -221,6 +225,11 @@ async function loadProducts() {
   }));
 }
 document.getElementById('load-products').onclick = loadProducts;
+productAutocomplete('new-prod-name', 'new-prod-suggestions', (picked) => {
+  document.getElementById('new-prod-name').value = picked.name;
+  document.getElementById('new-prod-emoji').value = picked.emoji;
+  document.getElementById('new-prod-price').value = picked.price;
+});
 document.getElementById('add-prod-btn').onclick = async () => {
   const name = document.getElementById('new-prod-name').value.trim();
   const emoji = document.getElementById('new-prod-emoji').value.trim() || '🛒';

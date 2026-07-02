@@ -43,14 +43,16 @@
     </div>
 
     <div class="form-group" id="catalog-group" style="display:none">
-      <label class="form-label">Products to enable for your employees</label>
-      <p class="text-muted" style="margin-top:-4px;margin-bottom:8px">Type a product name — if your distributor already sells it, we'll reuse it; otherwise it's added to their catalog at the price you set.</p>
+      <label class="form-label" id="catalog-label">Products to enable for your employees</label>
+      <p class="text-muted" style="margin-top:-4px;margin-bottom:8px" id="catalog-hint">Type a product name — pick a suggestion to reuse its price, or add your own.</p>
       <div class="form-row mb8">
-        <input id="new-prod-name" list="dist-product-names" placeholder="Product name, e.g. Green Tea">
+        <div style="position:relative">
+          <input id="new-prod-name" placeholder="Product name, e.g. Green Tea" autocomplete="off">
+          <div id="new-prod-suggestions" class="autocomplete-list" style="display:none"></div>
+        </div>
         <input id="new-prod-price" type="number" min="0" step="0.5" placeholder="Price (₹)" style="max-width:120px">
         <button class="btn btn-sm btn-primary" type="button" id="add-prod-btn">Add</button>
       </div>
-      <datalist id="dist-product-names"></datalist>
       <div id="catalog-list" class="card" style="padding:10px"></div>
     </div>
 
@@ -107,7 +109,12 @@ document.getElementById('reg-name').addEventListener('input', (e) => {
 function updateModeUI() {
   const isCompany = modeSel.value === 'company';
   distGroup.style.display = isCompany ? '' : 'none';
-  catalogGroup.style.display = isCompany && distSel.value ? '' : 'none';
+  catalogGroup.style.display = isCompany ? (distSel.value ? '' : 'none') : '';
+  document.getElementById('catalog-label').textContent = isCompany
+    ? 'Products to enable for your employees' : 'Your Products & Pricing';
+  document.getElementById('catalog-hint').textContent = isCompany
+    ? 'Type a product name — pick a suggestion to reuse its price, or add your own.'
+    : 'Type a product name — pick a suggestion to reuse its price, or set your own to add it as new.';
   staffLabel.innerHTML = isCompany
     ? 'Employee Name(s) <span class="text-muted">(comma-separated, optional)</span>'
     : 'Distributor Boy Name(s) <span class="text-muted">(comma-separated, optional)</span>';
@@ -139,17 +146,16 @@ function renderPendingProducts() {
   }));
 }
 
-async function loadCatalog(distributorId) {
+distSel.addEventListener('change', () => {
   pendingProducts = [];
   renderPendingProducts();
-  if (!distributorId) { catalogGroup.style.display = 'none'; return; }
-  catalogGroup.style.display = '';
-  const [s, d] = await API.publicGet(`/distributors/${distributorId}/products`);
-  const names = s === 200 && d.products ? d.products.filter(p => p.is_active).map(p => p.name) : [];
-  document.getElementById('dist-product-names').innerHTML = names.map(n => `<option value="${n}"></option>`).join('');
-}
+  updateModeUI();
+});
 
-distSel.addEventListener('change', () => loadCatalog(distSel.value));
+productAutocomplete('new-prod-name', 'new-prod-suggestions', (picked) => {
+  document.getElementById('new-prod-name').value = picked.name;
+  document.getElementById('new-prod-price').value = picked.price;
+});
 
 document.getElementById('add-prod-btn').addEventListener('click', () => {
   const nameEl = document.getElementById('new-prod-name');
@@ -182,10 +188,10 @@ document.getElementById('reg-submit').onclick = async () => {
     return;
   }
   const body = { name, slug, address, mode, admin_name, admin_password, manager_names, hr_names, staff_names };
+  body.new_products = pendingProducts.map(p => ({ name: p.name, price: p.price }));
   if (mode === 'company') {
     if (!distSel.value) { msg.innerHTML = '<div class="alert alert-warn">Please select a distributor.</div>'; return; }
     body.distributor_id = distSel.value;
-    body.new_products = pendingProducts.map(p => ({ name: p.name, price: p.price }));
   }
 
   const btn = document.getElementById('reg-submit');

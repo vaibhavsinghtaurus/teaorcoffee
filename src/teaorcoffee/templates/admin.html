@@ -74,13 +74,15 @@
           <div class="form-group"><select id="new-co-mode"><option value="company">Company</option><option value="distributor">Distributor</option></select></div>
           <div class="form-group" id="new-co-dist-group"><label class="form-label">Distributor</label><select id="new-co-dist-sel"></select></div>
           <div class="form-group" id="new-co-catalog-group">
-            <label class="form-label">Products to enable for this company</label>
+            <label class="form-label" id="new-co-catalog-label">Products to enable for this company</label>
             <div class="form-row mb8">
-              <input id="new-co-prod-name" list="new-co-dist-product-names" placeholder="Product name, e.g. Green Tea">
+              <div style="position:relative">
+                <input id="new-co-prod-name" placeholder="Product name, e.g. Green Tea" autocomplete="off">
+                <div id="new-co-prod-suggestions" class="autocomplete-list" style="display:none"></div>
+              </div>
               <input id="new-co-prod-price" type="number" min="0" step="0.5" placeholder="Price (₹)" style="max-width:120px">
               <button class="btn btn-sm btn-primary" type="button" id="add-co-prod-btn">Add</button>
             </div>
-            <datalist id="new-co-dist-product-names"></datalist>
             <div id="new-co-catalog-list" class="card" style="padding:10px"></div>
           </div>
           <div class="form-group"><label class="form-label">Admin Name</label><input id="new-co-admin" placeholder="Admin name…"></div>
@@ -324,7 +326,8 @@ loadProducts();
 function updateNewCoModeUI() {
   const isCompany = document.getElementById('new-co-mode').value === 'company';
   document.getElementById('new-co-dist-group').style.display = isCompany ? '' : 'none';
-  document.getElementById('new-co-catalog-group').style.display = isCompany ? '' : 'none';
+  document.getElementById('new-co-catalog-label').textContent = isCompany
+    ? 'Products to enable for this company' : 'Products & Pricing for this distributor';
 }
 document.getElementById('new-co-mode').addEventListener('change', updateNewCoModeUI);
 updateNewCoModeUI();
@@ -346,17 +349,14 @@ function renderNewCoPendingProducts() {
 }
 renderNewCoPendingProducts();
 
-async function loadNewCoDistProductNames(distributorId) {
-  const dl = document.getElementById('new-co-dist-product-names');
-  if (!distributorId) { dl.innerHTML = ''; return; }
-  const [s, d] = await API.publicGet(`/distributors/${distributorId}/products`);
-  const names = s === 200 && d.products ? d.products.filter(p => p.is_active).map(p => p.name) : [];
-  dl.innerHTML = names.map(n => `<option value="${n}"></option>`).join('');
-}
-document.getElementById('new-co-dist-sel').addEventListener('change', (e) => {
+productAutocomplete('new-co-prod-name', 'new-co-prod-suggestions', (picked) => {
+  document.getElementById('new-co-prod-name').value = picked.name;
+  document.getElementById('new-co-prod-price').value = picked.price;
+});
+
+document.getElementById('new-co-dist-sel').addEventListener('change', () => {
   newCoPendingProducts = [];
   renderNewCoPendingProducts();
-  loadNewCoDistProductNames(e.target.value);
 });
 document.getElementById('add-co-prod-btn').addEventListener('click', () => {
   const nameEl = document.getElementById('new-co-prod-name');
@@ -461,10 +461,8 @@ document.getElementById('create-co-btn').onclick = async () => {
   const msg = document.getElementById('create-co-msg');
   if (!name || !slug || !address || !admin_name) { msg.innerHTML = '<div class="alert alert-warn">Fill name, slug, address, and admin name.</div>'; return; }
   const body = { name, slug, address, mode, admin_name, manager_names, hr_names, staff_names };
-  if (mode === 'company') {
-    body.distributor_id = distributor_id;
-    body.new_products = newCoPendingProducts.map(p => ({ name: p.name, price: p.price }));
-  }
+  body.new_products = newCoPendingProducts.map(p => ({ name: p.name, price: p.price }));
+  if (mode === 'company') body.distributor_id = distributor_id;
   const [s, d] = await API.post('/companies/create-full', body);
   if (s === 200 && d.success) {
     msg.innerHTML = `<div class="alert alert-ok">${d.message}</div>`;

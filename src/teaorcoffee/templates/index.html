@@ -62,15 +62,20 @@ const hiddenEl = document.getElementById('company-sel-id');
 const suggEl = document.getElementById('company-suggestions');
 
 async function loadCompanies() {
-  const [s, d] = await API.publicGet('/companies/active');
-  companiesCache = (s === 200 && d.companies) ? d.companies : [];
+  const [[s1, d1], [s2, d2]] = await Promise.all([
+    API.publicGet('/companies/active'),
+    API.publicGet('/distributors/active'),
+  ]);
+  const companies = (s1 === 200 && d1.companies) ? d1.companies : [];
+  const distributors = (s2 === 200 && d2.companies) ? d2.companies : [];
+  companiesCache = companies.map(c => ({ ...c, icon: '🏢' })).concat(distributors.map(c => ({ ...c, icon: '🚚' })));
 }
 
 function renderSuggestions(filter) {
   const q = filter.trim().toLowerCase();
   const options = companiesCache
-    .map(o => ({ id: o.id, label: `${o.name}${o.address ? ' — ' + o.address : ''}` }))
-    .concat([{ id: '__dist', label: '🚚 Distributor / Staff Access' }]);
+    .map(o => ({ id: o.id, label: `${o.icon} ${o.name}${o.address ? ' — ' + o.address : ''}` }))
+    .concat([{ id: '__dist', label: '🚚 Distributor / Staff Access (unsure which)' }]);
   const matches = q ? options.filter(o => o.label.toLowerCase().includes(q)) : options;
   suggEl.innerHTML = matches.length
     ? matches.map(o => `<div class="autocomplete-item" data-id="${o.id}" data-label="${o.label}">${o.label}</div>`).join('')
