@@ -256,6 +256,7 @@
 const sess = Auth.require(['super_admin']);
 if (!sess) throw new Error('redirect');
 Theme.init();
+Nav.init();
 document.getElementById('orders-btn').onclick = () => location.href = '/order';
 document.getElementById('logout-btn').onclick = () => Auth.clearSession();
 

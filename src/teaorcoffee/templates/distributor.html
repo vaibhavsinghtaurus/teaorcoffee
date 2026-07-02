@@ -117,6 +117,7 @@
 const sess = Auth.require(['super_admin','company_admin','manager','hr','distributor_boy']);
 if (!sess) throw new Error('redirect');
 Theme.init();
+Nav.init();
 document.getElementById('logout-btn').onclick = () => Auth.clearSession();
 document.getElementById('uname').textContent = sess.username;
 

@@ -29,6 +29,77 @@ const Auth = {
   },
 };
 
+// Side-drawer navigation — shows only the pages the logged-in user's role (and
+// company mode) is allowed to visit. Injects its own toggle button into the
+// page's .topbar-title plus the drawer/overlay markup, so a page only needs to
+// call Nav.init() after Auth.require() — no matching HTML required per-page.
+const Nav = {
+  items(role, mode) {
+    // super_admin isn't scoped to one company/mode — it can reach every page
+    // (see each page's Auth.require list), so show the full set unconditionally.
+    if (role === 'super_admin') {
+      return [
+        { href: '/order', label: '☕ Orders' },
+        { href: '/stats', label: '📊 Stats' },
+        { href: '/company-admin', label: '🏢 Company Admin' },
+        { href: '/hr', label: '👔 HR Panel' },
+        { href: '/distributor', label: '🚚 Distributor' },
+        { href: '/admin', label: '⚙️ Super Admin' },
+      ];
+    }
+    const items = [
+      { href: '/order', label: '☕ Orders' },
+      { href: '/stats', label: '📊 Stats' },
+    ];
+    if (['company_admin', 'manager'].includes(role) && mode !== 'distributor') {
+      items.push({ href: '/company-admin', label: '🏢 Company Admin' });
+    }
+    if (['company_admin', 'manager', 'hr'].includes(role) && mode !== 'distributor') {
+      items.push({ href: '/hr', label: '👔 HR Panel' });
+    }
+    if (role === 'distributor_boy' || mode === 'distributor') {
+      items.push({ href: '/distributor', label: '🚚 Distributor' });
+    }
+    return items;
+  },
+
+  init() {
+    const token = Auth.getToken();
+    const user = Auth.getUser();
+    if (!token || !user.role) return;
+    const titleEl = document.querySelector('.topbar-title');
+    if (!titleEl || document.getElementById('nav-drawer-btn')) return;
+
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-sm';
+    btn.id = 'nav-drawer-btn';
+    btn.textContent = '☰';
+    btn.setAttribute('aria-label', 'Menu');
+    titleEl.insertBefore(btn, titleEl.firstChild);
+
+    const overlay = document.createElement('div');
+    overlay.className = 'drawer-overlay';
+    const drawer = document.createElement('div');
+    drawer.className = 'drawer';
+    drawer.innerHTML = `
+      <div class="drawer-header"><span>Menu</span><button class="btn btn-sm" id="nav-drawer-close">✕</button></div>
+      <div class="drawer-body">
+        ${this.items(user.role, user.company_mode).map(i =>
+          `<a class="drawer-link${i.href === location.pathname ? ' active' : ''}" href="${i.href}">${i.label}</a>`
+        ).join('')}
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    document.body.appendChild(drawer);
+
+    const open = () => { drawer.classList.add('open'); overlay.classList.add('open'); };
+    const close = () => { drawer.classList.remove('open'); overlay.classList.remove('open'); };
+    btn.onclick = open;
+    overlay.onclick = close;
+    drawer.querySelector('#nav-drawer-close').onclick = close;
+  },
+};
+
 const API = {
   async _fetch(path, opts = {}) {
     const token = Auth.getToken();

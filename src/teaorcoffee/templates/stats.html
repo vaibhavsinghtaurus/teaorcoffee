@@ -87,6 +87,7 @@
 const sess = Auth.require();
 if (!sess) throw new Error('redirect');
 Theme.init();
+Nav.init();
 
 document.getElementById('company-tag').textContent = sess.company_name || 'Company';
 document.getElementById('back-btn').onclick = () => location.href = '/order';

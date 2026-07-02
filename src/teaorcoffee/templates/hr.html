@@ -103,6 +103,7 @@
 const sess = Auth.require(['super_admin','company_admin','manager','hr']);
 if (!sess) throw new Error('redirect');
 Theme.init();
+Nav.init();
 document.getElementById('company-tag').textContent = sess.company_name || 'Company';
 document.getElementById('back-btn').onclick = () => location.href = '/order';
 document.getElementById('logout-btn').onclick = () => Auth.clearSession();
