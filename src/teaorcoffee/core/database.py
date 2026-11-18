@@ -64,6 +64,10 @@ class MongoDatabase:
     def company_products(self):
         return self._db["company_products"]
 
+    @property
+    def meta(self):
+        return self._db["_meta"]
+
     # ── Legacy collections (read-only, migration source only) ───────────────────
 
     @property

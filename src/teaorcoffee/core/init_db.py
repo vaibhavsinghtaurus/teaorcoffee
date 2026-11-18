@@ -27,9 +27,16 @@ async def initialize_database():
         logger.warning("Database not initialized — skipping DB initialization.")
         return
 
-    await _migrate_companies_and_links()
+    # The legacy-schema migration only needs to run once per database. Re-running it
+    # on every boot made startup slow and gave a transient DB/DNS failure more
+    # chances to break it, so it is skipped once its completion marker is written.
+    legacy_done = await _legacy_migration_done()
+    if not legacy_done:
+        await _migrate_companies_and_links()
     await _ensure_default_distributor()   # Zaff exists + every buyer company has a resolved distributor_id
-    await _migrate_legacy_products()      # legacy products claim their names/ids first
+    if not legacy_done:
+        await _migrate_legacy_products()  # legacy products claim their names/ids first
+        await _mark_legacy_migration_done()
     await _seed_defaults()                # default Tea/Coffee + Implevision + identities — no-ops where already migrated
     await _create_indexes()
 
@@ -37,6 +44,26 @@ async def initialize_database():
 
 
 # ── Migration from the old offices/distributor_companies/products schema ──────
+
+# Bump this to force the legacy migration to run again on the next boot.
+_LEGACY_MIGRATION_ID = "legacy_schema_migration"
+_LEGACY_MIGRATION_VERSION = 1
+
+
+async def _legacy_migration_done() -> bool:
+    marker = await db.meta.find_one({"_id": _LEGACY_MIGRATION_ID})
+    return bool(marker) and marker.get("version", 0) >= _LEGACY_MIGRATION_VERSION
+
+
+async def _mark_legacy_migration_done():
+    await db.meta.update_one(
+        {"_id": _LEGACY_MIGRATION_ID},
+        {"$set": {"version": _LEGACY_MIGRATION_VERSION,
+                  "completed_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    logger.info("Legacy schema migration complete — it will be skipped on future boots.")
+
 
 async def _migrate_companies_and_links():
     # 1. offices -> companies (mode=company), preserving _id
