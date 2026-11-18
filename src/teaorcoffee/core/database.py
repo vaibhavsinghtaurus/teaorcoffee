@@ -64,50 +64,7 @@ class MongoDatabase:
     def company_products(self):
         return self._db["company_products"]
 
-    @property
-    def meta(self):
-        return self._db["_meta"]
-
-    # ── Legacy collections (read-only, migration source only) ───────────────────
-
-    @property
-    def legacy_offices(self):
-        return self._db["offices"]
-
-    @property
-    def legacy_distributor_companies(self):
-        return self._db["distributor_companies"]
-
-    @property
-    def legacy_products(self):
-        return self._db["products"]
-
-    def _today(self) -> str:
-        return today_ist()
-
     # ── Companies ─────────────────────────────────────────────────────────────────
-
-    async def create_company(self, name: str, slug: str, mode: str,
-                              distributor_id: Optional[str] = None, is_active: bool = True,
-                              force_id: Optional[ObjectId] = None, address: str = "") -> str:
-        """Idempotent by slug — used for seeding/migration where re-running must not
-        create duplicates. Returns the existing company's id if the slug is taken."""
-        existing = await self.companies.find_one({"slug": slug})
-        if existing:
-            return str(existing["_id"])
-        doc = {
-            "name": name,
-            "slug": slug,
-            "mode": mode,
-            "address": address,
-            "distributor_id": distributor_id,
-            "is_active": is_active,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        }
-        if force_id is not None:
-            doc["_id"] = force_id
-        result = await self.companies.insert_one(doc)
-        return str(result.inserted_id)
 
     async def create_company_branch(self, name: str, slug: str, mode: str, address: str,
                                      distributor_id: Optional[str] = None, is_active: bool = True) -> str:
@@ -317,31 +274,6 @@ class MongoDatabase:
     async def set_distributor_product_active(self, product_id: str, is_active: bool) -> bool:
         r = await self.distributor_products.update_one({"_id": _oid(product_id)}, {"$set": {"is_active": is_active}})
         return r.matched_count > 0
-
-    async def seed_distributor_products(self, company_id: str, products: list[dict],
-                                         changed_by_user_id: Optional[int] = None):
-        for i, p in enumerate(products):
-            existing = await self.distributor_products.find_one({"company_id": company_id, "name": p["name"]})
-            if existing:
-                continue
-            result = await self.distributor_products.insert_one({
-                "company_id": company_id,
-                "name": p["name"],
-                "emoji": p["emoji"],
-                "current_price": p["price"],
-                "max_qty": p["max_qty"],
-                "is_active": True,
-                "sort_order": i,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            })
-            await self.product_price_history.insert_one({
-                "distributor_product_id": str(result.inserted_id),
-                "price": p["price"],
-                "changed_by_user_id": changed_by_user_id,
-                "effective_at": datetime.now(timezone.utc).isoformat(),
-            })
-
-    # ── Company Product Enablement ───────────────────────────────────────────────
 
     async def get_company_products(self, company_id: str, enabled_only: bool = False) -> list[dict]:
         """Distributor catalog joined with this buyer company's enable/max-qty override."""
@@ -638,12 +570,6 @@ class MongoDatabase:
             r["company_address"] = buyer["address"]
         rows.sort(key=lambda r: (r["company_name"], r["user_name"]))
         return rows
-
-    async def delete_all_votes(self, company_id: Optional[str] = None):
-        query = {}
-        if company_id:
-            query["company_id"] = company_id
-        await self.votes.delete_many(query)
 
     # ── Today Board (all statuses — live/operational view) ──────────────────────
 

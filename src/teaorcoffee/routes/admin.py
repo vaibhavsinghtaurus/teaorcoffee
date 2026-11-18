@@ -5,7 +5,6 @@ from src.teaorcoffee.core.auth import get_current_user, require_role
 from src.teaorcoffee.routes.auth import register_company_impl
 from src.teaorcoffee.models.schema import (
     AuthUser,
-    ResetRequest, VotesResponse, ProductTotal,
     UnbindRequest, UnbindResponse,
     RemoveOrderRequest, RemoveOrderResponse,
     RemoveAllLoginsRequest, RemoveAllLoginsResponse,
@@ -124,15 +123,6 @@ async def create_full_company(request: RegisterCompanyRequest, user: AuthUser = 
 
 
 # ── Orders ─────────────────────────────────────────────────────────────────────
-
-@router.post("/reset")
-async def reset_votes(request: ResetRequest, user: AuthUser = Depends(get_current_user)):
-    _require_super_admin(user)
-    await db.delete_all_votes(request.company_id)
-    if request.company_id:
-        await broadcast_votes(request.company_id)
-    totals = await db.get_today_totals(request.company_id)
-    return VotesResponse(totals={k: ProductTotal(**v) for k, v in totals.items()}, order_count=0)
 
 
 @router.post("/remove-order", response_model=RemoveOrderResponse)

@@ -33,10 +33,7 @@
         <label class="form-label">Filter by Company</label>
         <select id="orders-company-sel"><option value="">All Companies</option></select>
       </div>
-      <div class="flex-between mb16">
-        <h3 style="margin:0">Today's Orders</h3>
-        <button class="btn btn-sm btn-danger" id="reset-btn">🗑️ Reset Orders</button>
-      </div>
+      <h3 class="mb16">Today's Orders</h3>
       <div class="metrics" id="order-metrics"></div>
       <div class="table-wrap mb16"><table><thead><tr><th>Name</th><th>Order</th><th></th></tr></thead><tbody id="orders-tbody"></tbody></table></div>
       <div class="card">
@@ -379,14 +376,6 @@ async function loadProducts() {
   sel.innerHTML = products.map(p => `<option value="${p.distributor_product_id}" data-max="${p.max_qty}">${p.emoji} ${p.name}</option>`).join('');
 }
 
-document.getElementById('reset-btn').onclick = async () => {
-  const companyId = document.getElementById('orders-company-sel').value;
-  if (!confirm('Reset orders' + (companyId ? ' for this company' : ' for ALL companies') + '?')) return;
-  const body = {};
-  if (companyId) body.company_id = companyId;
-  const [s, d] = await API.post('/reset', body);
-  if (s === 200) Toast.ok('Orders reset.'); else Toast.err(d.detail || 'Error');
-};
 document.getElementById('po-dec').onclick = () => { const e = document.getElementById('po-qty'); if (parseInt(e.value) > 1) e.value--; };
 document.getElementById('po-inc').onclick = () => {
   const e = document.getElementById('po-qty'), max = parseInt(document.getElementById('po-prod').selectedOptions[0]?.dataset.max || 99);
