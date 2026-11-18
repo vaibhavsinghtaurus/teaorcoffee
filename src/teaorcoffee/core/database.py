@@ -66,26 +66,6 @@ class MongoDatabase:
 
     # ── Companies ─────────────────────────────────────────────────────────────────
 
-    async def create_company(self, name: str, slug: str, mode: str,
-                              distributor_id: Optional[str] = None, is_active: bool = True,
-                              address: str = "") -> str:
-        """Idempotent by slug — used for seeding where re-running must not
-        create duplicates. Returns the existing company's id if the slug is taken."""
-        existing = await self.companies.find_one({"slug": slug})
-        if existing:
-            return str(existing["_id"])
-        doc = {
-            "name": name,
-            "slug": slug,
-            "mode": mode,
-            "address": address,
-            "distributor_id": distributor_id,
-            "is_active": is_active,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        }
-        result = await self.companies.insert_one(doc)
-        return str(result.inserted_id)
-
     async def create_company_branch(self, name: str, slug: str, mode: str, address: str,
                                      distributor_id: Optional[str] = None, is_active: bool = True) -> str:
         """Always creates a NEW company row — multiple branches can share the same
@@ -294,31 +274,6 @@ class MongoDatabase:
     async def set_distributor_product_active(self, product_id: str, is_active: bool) -> bool:
         r = await self.distributor_products.update_one({"_id": _oid(product_id)}, {"$set": {"is_active": is_active}})
         return r.matched_count > 0
-
-    async def seed_distributor_products(self, company_id: str, products: list[dict],
-                                         changed_by_user_id: Optional[int] = None):
-        for i, p in enumerate(products):
-            existing = await self.distributor_products.find_one({"company_id": company_id, "name": p["name"]})
-            if existing:
-                continue
-            result = await self.distributor_products.insert_one({
-                "company_id": company_id,
-                "name": p["name"],
-                "emoji": p["emoji"],
-                "current_price": p["price"],
-                "max_qty": p["max_qty"],
-                "is_active": True,
-                "sort_order": i,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            })
-            await self.product_price_history.insert_one({
-                "distributor_product_id": str(result.inserted_id),
-                "price": p["price"],
-                "changed_by_user_id": changed_by_user_id,
-                "effective_at": datetime.now(timezone.utc).isoformat(),
-            })
-
-    # ── Company Product Enablement ───────────────────────────────────────────────
 
     async def get_company_products(self, company_id: str, enabled_only: bool = False) -> list[dict]:
         """Distributor catalog joined with this buyer company's enable/max-qty override."""
