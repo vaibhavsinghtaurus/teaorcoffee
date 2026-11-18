@@ -64,6 +64,9 @@ class MongoDatabase:
     def company_products(self):
         return self._db["company_products"]
 
+    def _today(self) -> str:
+        return today_ist()
+
     # ── Companies ─────────────────────────────────────────────────────────────────
 
     async def create_company_branch(self, name: str, slug: str, mode: str, address: str,
