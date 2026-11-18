@@ -64,33 +64,12 @@ class MongoDatabase:
     def company_products(self):
         return self._db["company_products"]
 
-    @property
-    def meta(self):
-        return self._db["_meta"]
-
-    # ── Legacy collections (read-only, migration source only) ───────────────────
-
-    @property
-    def legacy_offices(self):
-        return self._db["offices"]
-
-    @property
-    def legacy_distributor_companies(self):
-        return self._db["distributor_companies"]
-
-    @property
-    def legacy_products(self):
-        return self._db["products"]
-
-    def _today(self) -> str:
-        return today_ist()
-
     # ── Companies ─────────────────────────────────────────────────────────────────
 
     async def create_company(self, name: str, slug: str, mode: str,
                               distributor_id: Optional[str] = None, is_active: bool = True,
-                              force_id: Optional[ObjectId] = None, address: str = "") -> str:
-        """Idempotent by slug — used for seeding/migration where re-running must not
+                              address: str = "") -> str:
+        """Idempotent by slug — used for seeding where re-running must not
         create duplicates. Returns the existing company's id if the slug is taken."""
         existing = await self.companies.find_one({"slug": slug})
         if existing:
@@ -104,8 +83,6 @@ class MongoDatabase:
             "is_active": is_active,
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
-        if force_id is not None:
-            doc["_id"] = force_id
         result = await self.companies.insert_one(doc)
         return str(result.inserted_id)
 
