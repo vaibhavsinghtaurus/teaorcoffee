@@ -270,10 +270,6 @@ class ChatMessageOut(BaseModel):
 
 # ── Admin / Shared ────────────────────────────────────────────────────────────
 
-class ResetRequest(BaseModel):
-    company_id: str | None = None
-
-
 class UnbindRequest(BaseModel):
     name: str
 

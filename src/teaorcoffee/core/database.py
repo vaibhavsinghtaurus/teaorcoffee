@@ -571,12 +571,6 @@ class MongoDatabase:
         rows.sort(key=lambda r: (r["company_name"], r["user_name"]))
         return rows
 
-    async def delete_all_votes(self, company_id: Optional[str] = None):
-        query = {}
-        if company_id:
-            query["company_id"] = company_id
-        await self.votes.delete_many(query)
-
     # ── Today Board (all statuses — live/operational view) ──────────────────────
 
     async def get_today_totals(self, company_id: Optional[str] = None) -> dict:

@@ -32,7 +32,6 @@
       <h3 style="margin:0">Today's Orders</h3>
       <div class="flex gap8">
         <button class="btn btn-sm" id="refresh-orders">🔄 Refresh</button>
-        <button class="btn btn-sm btn-danger" id="reset-orders">🗑️ Reset All</button>
       </div>
     </div>
     <div class="metrics" id="order-metrics"></div>
@@ -222,12 +221,6 @@ async function removeOrder(name) {
   else Toast.err(d.detail || 'Error');
 }
 document.getElementById('refresh-orders').onclick = loadOrders;
-document.getElementById('reset-orders').onclick = async () => {
-  if (!confirm('Reset all orders for this company?')) return;
-  const [s,d] = await API.post('/company-admin/orders/reset', {});
-  if (s === 200) { Toast.ok('All orders reset.'); loadOrders(); }
-  else Toast.err(d.detail || 'Error');
-};
 async function loadProducts() {
   const [,data] = await API.get('/products');
   products = data.products || [];

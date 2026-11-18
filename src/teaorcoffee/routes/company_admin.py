@@ -57,13 +57,6 @@ async def ca_get_orders(user: AuthUser = Depends(get_current_user)):
     )
 
 
-@router.post("/orders/reset")
-async def ca_reset_orders(user: AuthUser = Depends(get_current_user)):
-    company_id = _check_company(user)
-    await db.delete_all_votes(company_id)
-    await broadcast_votes(company_id)
-    return {"success": True, "message": "All orders reset for today"}
-
 
 @router.post("/orders/remove", response_model=RemoveOrderResponse)
 async def ca_remove_order(request: RemoveOrderRequest, user: AuthUser = Depends(get_current_user)):
